@@ -2,7 +2,7 @@ import "./styles.css";
 import { m4 } from "./m4.js";
 import { setGeometry, geometryF } from "./setGeometry";
 import { setColors } from "./setColors";
-import { makeBuffer, createProgramFromSources } from "./utils";
+import { makeBuffer } from "./utils";
 import {
   vertexShaderSource,
   fragmentShaderSource,
@@ -14,7 +14,7 @@ function radToDeg(r) {
 function degToRad(d) {
   return (d * Math.PI) / 180;
 }
-
+("use strict");
 // You can either biond VAO or Buffer
 
 document.getElementById("app").innerHTML = `<h1>Hello Vanilla!</h1>`;
@@ -34,14 +34,14 @@ function main() {
     fragmentShaderSource
   ]);
 
-  // const computeShader = gl.createShader(gl.COMPUTE_SHADER);
-  // gl.shaderSource(computeShader, computeShaderSource);
-  // gl.compileShader(computeShader);
+  const computeShader = gl.createShader(gl.COMPUTE_SHADER);
+  gl.shaderSource(computeShader, computeShaderSource);
+  gl.compileShader(computeShader);
 
   // ----------- ATTRIBUTES ----------- //
 
-  var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
+  // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+  // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
 
   var colorLocation = gl.getUniformLocation(program, "u_color");
   var matrixLocation = gl.getUniformLocation(program, "u_matrix");
