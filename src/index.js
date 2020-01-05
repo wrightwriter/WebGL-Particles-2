@@ -50,39 +50,6 @@ function checkErorrs(gl,ctx){
     fragmentShaderSource
   ]);
   
-  const computeShaderSource2 = `#version 310 es
-    layout (local_size_x = ${NUM_PARTICLES}, local_size_y = 1, local_size_z = 1) in;
-    layout (std430, binding = 0) buffer SSBO {
-      float data[];
-    } ssbo;
-    uniform uvec4 numElements;
-    
-    void main() {
-       float tmp;
-      uint ixj = gl_GlobalInvocationID.x ^ numElements.y;
-      if (ixj > gl_GlobalInvocationID.x)
-      {
-        if ((gl_GlobalInvocationID.x & numElements.x) == 0u)
-        {
-          if (ssbo.data[gl_GlobalInvocationID.x] > ssbo.data[ixj])
-          {
-            tmp = ssbo.data[gl_GlobalInvocationID.x];
-            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];
-            ssbo.data[ixj] = tmp;
-          }
-        }
-        else
-        {
-          if (ssbo.data[gl_GlobalInvocationID.x] < ssbo.data[ixj])
-          {
-            tmp = ssbo.data[gl_GlobalInvocationID.x];
-            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];
-            ssbo.data[ixj] = tmp;
-          }
-        }
-      }
-    }
-    `;
   const computeShader = gl.createShader(gl.COMPUTE_SHADER);
   gl.shaderSource(computeShader, computeShaderSource);
   gl.compileShader(computeShader);
@@ -100,11 +67,7 @@ function checkErorrs(gl,ctx){
   if (!gl.getProgramParameter(computeProgram,gl.LINK_STATUS)){
     console.log("error linking shader")
   }
-  // const array = new Float32Array(NUM_PARTICLES)
-  // const ssbo = gl.createBuffer()
-  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
-  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
-  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
+
 
   const texture = gl.createTexture()
 
@@ -134,18 +97,12 @@ function checkErorrs(gl,ctx){
     gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
 
-  // for (let i = 0; i < 1024; i++){
-  //   gl.useProgram(computeProgram)
-  //   gl.dispatchCompute(512/16, 512/16,1)
-  //   gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
-  //   checkErorrs(gl, "Dispatching compute shader")
-  // }
+  // const array = new Float32Array(NUM_PARTICLES)
+  // const ssbo = gl.createBuffer()
+  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
+  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
+  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
 
-  // show texture to Canvas
-  // gl.useProgram(computeProgram)
-  // gl.dispatchCompute(NUM_PARTICLES, 1,1)
-
-  // for (let k = )
 
 
 
@@ -209,8 +166,37 @@ function checkErorrs(gl,ctx){
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
+    gl.bindVertexArray(vaoP);
 
+    const left = 0;
+    const right = gl.canvas.clientWidth;
+    const bottom = gl.canvas.clientHeight;
+    const top = 0;
+    const near = 400;
+    const far = -400;
+    let matrix = m4.orthographic(left, right, bottom, top, near, far);
+    matrix = m4.translate(
+      matrix,
+      translation[0],
+      translation[1],
+      translation[2]
+    );
+    matrix = m4.xRotate(matrix, rotation[0]);
+    matrix = m4.yRotate(matrix, rotation[1]);
+    matrix = m4.zRotate(matrix, rotation[2]);
+    matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
+
+    
     for (let i = 0; i < NUM_PARTICLES; i++) {
+      gl.useProgram(programParticles)
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_distTex"), 0) // bind texture 0 
+      gl.uniformMatrix4fv(matrixLocation, false, matrix);
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleId"), i);
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleCount"), NUM_PARTICLES);
+      
+      var offset = 0;
+      var count = 16 * 6;
+      gl.drawArrays(gl.POINTS, offset, count);
 
     }
 
@@ -224,7 +210,7 @@ function checkErorrs(gl,ctx){
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    gl.bindVertexArray(vaoF);
+    // gl.bindVertexArray(vaoF);
     gl.uniform4fv(colorLocation, color);
 
     var fudgeFactor = 0;
@@ -264,5 +250,9 @@ function checkErorrs(gl,ctx){
   }
 }
 
+
+function setupCompute () {
+
+}
 window.addEventListener('DOMContentLoaded', main)
 // main();

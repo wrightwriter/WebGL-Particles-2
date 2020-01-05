@@ -1,26 +1,35 @@
-export let vertexShaderSource = `#version 310 es
+export let vertexShaderSource = `#version 300 es
 
 in vec4 a_position;
-in vec4 a_color;
+// in vec4 a_color;
 
 uniform mat4 u_matrix;
 uniform float u_fudgeFactor;
+uniform sampler2D u_distTex;
+uniform int u_particleId;
+uniform int u_particleCount;
 
 out vec4 v_color;
 
 void main() {
-  vec4 position = u_matrix * a_position;
+  //vec4 position = u_matrix * a_position;
 
+  float id = float(u_particleId);
+  float count = float(u_particleCount);
+  float t =   texture(u_distTex,vec2(id/count,1)).x;
+  vec4 position = u_matrix * vec4(45.  + t*100.,150,0.6,1);
   
   //position.x *= 0.5;
-  float zToDivideBy = 1.0 + position.z * u_fudgeFactor;
+  // float zToDivideBy = 1.0 + position.z * u_fudgeFactor;
+  float zToDivideBy = 1.;
   gl_PointSize = 3.0;
-  v_color = a_color;
+  // v_color = a_color;
+  v_color = vec4(1);
   gl_Position = vec4(position.xy / zToDivideBy, position.zw);
 }
 `;
 
-export const fragmentShaderSource = `#version 310 es
+export const fragmentShaderSource = `#version 300 es
 
 precision mediump float;
 
@@ -30,7 +39,7 @@ out vec4 outColor;
 
 void main() {
   // outColor = v_color;
-  outColor = vec4(0.5,0.8,0.6,1.);
+  outColor = vec4(0,0,1,1.);
 }
 `;
 export const computeShaderSource = `#version 310 es
@@ -39,7 +48,7 @@ export const computeShaderSource = `#version 310 es
 
   void main() {
     ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);
-    imageStore(destTex, posGlobal, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));
+    //imageStore(destTex, storePos, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));
   }
 
 `;

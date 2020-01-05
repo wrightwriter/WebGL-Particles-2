@@ -450,11 +450,11 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.computeShaderSourceOld = exports.computeShaderSource = exports.fragmentShaderSource = exports.vertexShaderSource = void 0;
-var vertexShaderSource = "#version 310 es\n\nin vec4 a_position;\nin vec4 a_color;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n\nout vec4 v_color;\n\nvoid main() {\n  vec4 position = u_matrix * a_position;\n\n  \n  //position.x *= 0.5;\n  float zToDivideBy = 1.0 + position.z * u_fudgeFactor;\n  gl_PointSize = 3.0;\n  v_color = a_color;\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
+var vertexShaderSource = "#version 300 es\n\nin vec4 a_position;\n// in vec4 a_color;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\nuniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\n\nout vec4 v_color;\n\nvoid main() {\n  //vec4 position = u_matrix * a_position;\n\n  float id = float(u_particleId);\n  float count = float(u_particleCount);\n  float t =   texture(u_distTex,vec2(id/count,1)).x;\n  vec4 position = u_matrix * vec4(45.  + t*100.,150,0.6,1);\n  \n  //position.x *= 0.5;\n  // float zToDivideBy = 1.0 + position.z * u_fudgeFactor;\n  float zToDivideBy = 1.;\n  gl_PointSize = 3.0;\n  // v_color = a_color;\n  v_color = vec4(1);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
 exports.vertexShaderSource = vertexShaderSource;
-var fragmentShaderSource = "#version 310 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0.5,0.8,0.6,1.);\n}\n";
+var fragmentShaderSource = "#version 300 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0,0,1,1.);\n}\n";
 exports.fragmentShaderSource = fragmentShaderSource;
-var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;\n\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    imageStore(destTex, posGlobal, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));\n  }\n\n";
+var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;\n\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    //imageStore(destTex, storePos, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));\n  }\n\n";
 exports.computeShaderSource = computeShaderSource;
 var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat(10, ", local_size_y = 1, local_size_z = 1) in;\n\n  // layout (std140, binding = 0) buffer SSBOIn {\n  //   Boids data[];\n  //  } ssboIn;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  }\n  // shared Particle sharedData[", 10, "];\n\n  void main () {\n    uint localThreadID = gl_LocallInvocationID.x;\n    uint globalThreadID = gl_GlobalInvocationID.x;\n    uint workGroupSize = gl_WorkGroupSize.x;\n  }\n\n\n"); // export let fragmentShaderSource = `#version 310 es
 // precision mediump float;
@@ -535,7 +535,6 @@ function main() {
 
 
   var programParticles = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderSource, _shaders.fragmentShaderSource]);
-  var computeShaderSource2 = "#version 310 es\n    layout (local_size_x = ".concat(NUM_PARTICLES, ", local_size_y = 1, local_size_z = 1) in;\n    layout (std430, binding = 0) buffer SSBO {\n      float data[];\n    } ssbo;\n    uniform uvec4 numElements;\n    \n    void main() {\n       float tmp;\n      uint ixj = gl_GlobalInvocationID.x ^ numElements.y;\n      if (ixj > gl_GlobalInvocationID.x)\n      {\n        if ((gl_GlobalInvocationID.x & numElements.x) == 0u)\n        {\n          if (ssbo.data[gl_GlobalInvocationID.x] > ssbo.data[ixj])\n          {\n            tmp = ssbo.data[gl_GlobalInvocationID.x];\n            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];\n            ssbo.data[ixj] = tmp;\n          }\n        }\n        else\n        {\n          if (ssbo.data[gl_GlobalInvocationID.x] < ssbo.data[ixj])\n          {\n            tmp = ssbo.data[gl_GlobalInvocationID.x];\n            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];\n            ssbo.data[ixj] = tmp;\n          }\n        }\n      }\n    }\n    ");
   var computeShader = gl.createShader(gl.COMPUTE_SHADER);
   gl.shaderSource(computeShader, _shaders.computeShaderSource);
   gl.compileShader(computeShader);
@@ -551,12 +550,7 @@ function main() {
 
   if (!gl.getProgramParameter(computeProgram, gl.LINK_STATUS)) {
     console.log("error linking shader");
-  } // const array = new Float32Array(NUM_PARTICLES)
-  // const ssbo = gl.createBuffer()
-  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
-  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
-  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
-
+  }
 
   var texture = gl.createTexture(); // make texture
 
@@ -575,16 +569,11 @@ function main() {
 
   gl.dispatchCompute(NUM_PARTICLES, 1, 1);
   gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT);
-  gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST); // for (let i = 0; i < 1024; i++){
-  //   gl.useProgram(computeProgram)
-  //   gl.dispatchCompute(512/16, 512/16,1)
-  //   gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
-  //   checkErorrs(gl, "Dispatching compute shader")
-  // }
-  // show texture to Canvas
-  // gl.useProgram(computeProgram)
-  // gl.dispatchCompute(NUM_PARTICLES, 1,1)
-  // for (let k = )
+  gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST); // const array = new Float32Array(NUM_PARTICLES)
+  // const ssbo = gl.createBuffer()
+  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
+  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
+  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
   // ----------- ATTRIBUTES ----------- //
   // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
@@ -623,8 +612,33 @@ function main() {
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.bindVertexArray(vaoP);
+    var left = 0;
+    var right = gl.canvas.clientWidth;
+    var bottom = gl.canvas.clientHeight;
+    var top = 0;
+    var near = 400;
+    var far = -400;
 
-    for (var i = 0; i < NUM_PARTICLES; i++) {}
+    var matrix = _m.m4.orthographic(left, right, bottom, top, near, far);
+
+    matrix = _m.m4.translate(matrix, translation[0], translation[1], translation[2]);
+    matrix = _m.m4.xRotate(matrix, rotation[0]);
+    matrix = _m.m4.yRotate(matrix, rotation[1]);
+    matrix = _m.m4.zRotate(matrix, rotation[2]);
+    matrix = _m.m4.scale(matrix, scale[0], scale[1], scale[2]);
+
+    for (var i = 0; i < NUM_PARTICLES; i++) {
+      gl.useProgram(programParticles);
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_distTex"), 0); // bind texture 0 
+
+      gl.uniformMatrix4fv(matrixLocation, false, matrix);
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleId"), i);
+      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleCount"), NUM_PARTICLES);
+      var offset = 0;
+      var count = 16 * 6;
+      gl.drawArrays(gl.POINTS, offset, count);
+    }
   }
 
   function drawScene() {
@@ -633,8 +647,8 @@ function main() {
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
     gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.bindVertexArray(vaoF);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); // gl.bindVertexArray(vaoF);
+
     gl.uniform4fv(colorLocation, color);
     var fudgeFactor = 0; // gl.uniform1f(fudgeLocation, fudgeFactor);
 
@@ -665,6 +679,8 @@ function main() {
     gl.drawArrays(gl.POINTS, offset, count); // gl.drawArrays(primitiveType, offset, count);
   }
 }
+
+function setupCompute() {}
 
 window.addEventListener('DOMContentLoaded', main); // main();
 },{"./styles.css":"src/styles.css","./m4.js":"src/m4.js","./setGeometry":"src/setGeometry.js","./setColors":"src/setColors.js","./utils":"src/utils.js","./shaders.js":"src/shaders.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
