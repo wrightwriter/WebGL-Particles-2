@@ -1,4 +1,4 @@
-export let vertexShaderSource = `#version 300 es
+export let vertexShaderSource = `#version 310 es
 
 in vec4 a_position;
 in vec4 a_color;
@@ -20,7 +20,7 @@ void main() {
 }
 `;
 
-export const fragmentShaderSource = `#version 300 es
+export const fragmentShaderSource = `#version 310 es
 
 precision mediump float;
 
@@ -33,7 +33,17 @@ void main() {
   outColor = vec4(0.5,0.8,0.6,1.);
 }
 `;
-export let computeShaderSource = `#version 310 es
+export const computeShaderSource = `#version 310 es
+  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;
+
+  void main() {
+    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);
+    imageStore(destTex, posGlobal, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));
+  }
+
+`;
+export const computeShaderSourceOld = `#version 310 es
   layout (local_size_x = ${10}, local_size_y = 1, local_size_z = 1) in;
 
   // layout (std140, binding = 0) buffer SSBOIn {
@@ -47,10 +57,9 @@ export let computeShaderSource = `#version 310 es
   // shared Particle sharedData[${10}];
 
   void main () {
-    uint threadID = gl_GlobalInvocationID.x;
-    
-
-
+    uint localThreadID = gl_LocallInvocationID.x;
+    uint globalThreadID = gl_GlobalInvocationID.x;
+    uint workGroupSize = gl_WorkGroupSize.x;
   }
 
 

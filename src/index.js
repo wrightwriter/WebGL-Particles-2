@@ -14,49 +14,160 @@ function radToDeg(r) {
 function degToRad(d) {
   return (d * Math.PI) / 180;
 }
+
 ("use strict");
 // You can either biond VAO or Buffer
 
 document.getElementById("app").innerHTML = `<h1>Hello Vanilla!</h1>`;
 
+
+const NUM_PARTICLES = 1000;
+
 function main() {
   // Get A WebGL context
+function checkErorrs(gl,ctx){
+  const e = gl.getError()
+  if (e !== gl.NO_ERROR){
+    console.log("ERROR: " + ctx)
+    console.log(e)
+  }
+
+}
   /** @type {HTMLCanvasElement} */
-  var canvas = document.getElementById("canvas");
-  var gl = canvas.getContext("webgl2");
+  const canvas = document.getElementById("canvas");
+  const WIDTH = canvas.width
+  const HEIGHT = canvas.height
+
+  const gl = canvas.getContext("webgl2-compute", {antialias: false});
   if (!gl) {
     return;
   }
 
   // ----------- SHADERS ----------- //
-  var program = webglUtils.createProgramFromSources(gl, [
+
+  const programParticles = webglUtils.createProgramFromSources(gl, [
     vertexShaderSource,
     fragmentShaderSource
   ]);
-
+  
+  const computeShaderSource2 = `#version 310 es
+    layout (local_size_x = ${NUM_PARTICLES}, local_size_y = 1, local_size_z = 1) in;
+    layout (std430, binding = 0) buffer SSBO {
+      float data[];
+    } ssbo;
+    uniform uvec4 numElements;
+    
+    void main() {
+       float tmp;
+      uint ixj = gl_GlobalInvocationID.x ^ numElements.y;
+      if (ixj > gl_GlobalInvocationID.x)
+      {
+        if ((gl_GlobalInvocationID.x & numElements.x) == 0u)
+        {
+          if (ssbo.data[gl_GlobalInvocationID.x] > ssbo.data[ixj])
+          {
+            tmp = ssbo.data[gl_GlobalInvocationID.x];
+            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];
+            ssbo.data[ixj] = tmp;
+          }
+        }
+        else
+        {
+          if (ssbo.data[gl_GlobalInvocationID.x] < ssbo.data[ixj])
+          {
+            tmp = ssbo.data[gl_GlobalInvocationID.x];
+            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];
+            ssbo.data[ixj] = tmp;
+          }
+        }
+      }
+    }
+    `;
   const computeShader = gl.createShader(gl.COMPUTE_SHADER);
   gl.shaderSource(computeShader, computeShaderSource);
   gl.compileShader(computeShader);
+
+  if (!gl.getShaderParameter(computeShader, gl.COMPILE_STATUS)) {
+    console.log(gl.getShaderInfoLog(computeShader));
+    console.log("error compiling shader")
+    // return null;
+  }
+
+  const computeProgram = gl.createProgram()
+  gl.attachShader(computeProgram, computeShader)
+  gl.linkProgram(computeProgram)
+
+  if (!gl.getProgramParameter(computeProgram,gl.LINK_STATUS)){
+    console.log("error linking shader")
+  }
+  // const array = new Float32Array(NUM_PARTICLES)
+  // const ssbo = gl.createBuffer()
+  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
+  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
+  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
+
+  const texture = gl.createTexture()
+
+  // make texture
+  gl.activeTexture(gl.TEXTURE0)
+  gl.bindTexture(gl.TEXTURE_2D, texture)
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8,NUM_PARTICLES, 1)
+  gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_WRITE, gl.RGBA8) // bind for writing
+
+  // make framebuffer to read from texture
+  const frameBuffer = gl.createFramebuffer()
+  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer)
+  gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture,0)
+  
+  checkErorrs(gl, "Texture problem")
+
+
+  gl.useProgram(computeProgram)
+  gl.uniform1i(gl.getUniformLocation(computeProgram, "distTex"), 0) // bind texture 0 
+
+  gl.dispatchCompute(NUM_PARTICLES, 1,1)
+  gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
+
+  gl.blitFramebuffer(
+    0, 0, NUM_PARTICLES, 1,
+    0, 0, WIDTH, HEIGHT,
+    gl.COLOR_BUFFER_BIT, gl.NEAREST);
+
+
+  // for (let i = 0; i < 1024; i++){
+  //   gl.useProgram(computeProgram)
+  //   gl.dispatchCompute(512/16, 512/16,1)
+  //   gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
+  //   checkErorrs(gl, "Dispatching compute shader")
+  // }
+
+  // show texture to Canvas
+  // gl.useProgram(computeProgram)
+  // gl.dispatchCompute(NUM_PARTICLES, 1,1)
+
+  // for (let k = )
+
+
 
   // ----------- ATTRIBUTES ----------- //
 
   // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
 
-  var colorLocation = gl.getUniformLocation(program, "u_color");
-  var matrixLocation = gl.getUniformLocation(program, "u_matrix");
-  var fudgeLocation = gl.getUniformLocation(program, "u_fudgeFactor");
-  var colorAttributeLocation = gl.getAttribLocation(program, "a_color");
+  var colorLocation = gl.getUniformLocation(programParticles, "u_color");
+  var matrixLocation = gl.getUniformLocation(programParticles, "u_matrix");
+  var fudgeLocation = gl.getUniformLocation(programParticles, "u_fudgeFactor");
+  var colorAttributeLocation = gl.getAttribLocation(programParticles, "a_color");
 
   // ----------- BUFFERS ----------- //
 
-  var vaoF = gl.createVertexArray();
-  gl.bindVertexArray(vaoF);
+  var vaoP = gl.createVertexArray();
+  gl.bindVertexArray(vaoP);
 
-  const fBuffer = makeBuffer(
+  const pBuffer = makeBuffer(
     gl,
     "a_position",
-    program,
+    programParticles,
     3,
     gl.GL_FLOAT,
     false,
@@ -70,7 +181,9 @@ function main() {
   var scale = [1, 1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
 
-  drawScene();
+
+
+  drawParticles();
 
   webglLessonsUI.setupSlider("#x", {
     value: translation[0],
@@ -86,6 +199,22 @@ function main() {
   }
   // ----------- DRAW ----------- //
 
+
+  function drawParticles() {
+    webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+
+
+    for (let i = 0; i < NUM_PARTICLES; i++) {
+
+    }
+
+  }
   function drawScene() {
     webglUtils.resizeCanvasToDisplaySize(gl.canvas);
 
@@ -99,7 +228,7 @@ function main() {
     gl.uniform4fv(colorLocation, color);
 
     var fudgeFactor = 0;
-    gl.uniform1f(fudgeLocation, fudgeFactor);
+    // gl.uniform1f(fudgeLocation, fudgeFactor);
 
     var left = 0;
     var right = gl.canvas.clientWidth;
@@ -124,7 +253,7 @@ function main() {
     matrix = m4.zRotate(matrix, rotation[2]);
     matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
-    gl.useProgram(program);
+    gl.useProgram(programParticles);
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
 
     var primitiveType = gl.TRIANGLES;
@@ -135,4 +264,5 @@ function main() {
   }
 }
 
-main();
+window.addEventListener('DOMContentLoaded', main)
+// main();
