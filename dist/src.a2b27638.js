@@ -450,13 +450,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.computeShaderSourceOld = exports.computeShaderSource = exports.fragmentShaderSource = exports.vertexShaderSource = void 0;
-var vertexShaderSource = "#version 300 es\n\nin vec4 a_position;\n// in vec4 a_color;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\nuniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\n\nout vec4 v_color;\n\nvoid main() {\n  //vec4 position = u_matrix * a_position;\n\n  float id = float(u_particleId);\n  float count = float(u_particleCount);\n  float t =   texture(u_distTex,vec2(id/count,1)).x;\n  vec4 position = u_matrix * vec4(45.  + t*100.,150,0.6,1);\n  \n  //position.x *= 0.5;\n  // float zToDivideBy = 1.0 + position.z * u_fudgeFactor;\n  float zToDivideBy = 1.;\n  gl_PointSize = 3.0;\n  // v_color = a_color;\n  v_color = vec4(1);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
+var vertexShaderSource = "#version 300 es\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\nout vec4 v_color;\n\nvoid main() {\n  //vec4 position = u_matrix * a_position;\n\n  float id = float(u_particleId);\n  float particleCount = float(u_particleCount);\n  float fracId = id/particleCount;\n\n  // float t =   texture(u_distTex,vec2(fracId,0)).x;\n  // float t =   imageLoad(u_distTex,ivec2(u_particleId,0)).x;\n  vec4 position = u_matrix * vec4(0. + fracId*u_resolution.x + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + t*100000. + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 2.0;\n  // v_color = a_color;\n  v_color = vec4(1);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
 exports.vertexShaderSource = vertexShaderSource;
 var fragmentShaderSource = "#version 300 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0,0,1,1.);\n}\n";
 exports.fragmentShaderSource = fragmentShaderSource;
-var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;\n\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    //imageStore(destTex, storePos, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));\n  }\n\n";
+var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) uniform writeonly highp image2D destTex;\n  // layout (rgba8, binding = 1) uniform readonly highp image2D sampleTex;\n\n  uniform vec2 u_resolution;\n  uniform vec2 u_positionMouse;\n  uniform int u_particleCount;\n  uniform float u_timeElapsed;\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    // vec4 col =  vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0);\n\n    vec2 positionMouse = u_positionMouse - 0.5;\n    // vec2 directionMouse = normalize(positionMouse - previous.xy );\n    vec4 col = vec4(0);\n    // vec4 col = vec4(1,0,0,1);\n\n    if (u_timeElapsed <=  222200.) {\n      col = vec4(1,0,0,1);\n    } else {\n      // vec4 previous = imageLoad(sampleTex, posGlobal);\n      // col = previous;\n    }\n\n    // col += float(u_particleCount)*0.0009;\n    // col =  vec4(0.000001*float(gl_LocalInvocationID.x) / float(u_particleCount));\n    // col -= 1000.;\n    // col =  vec4(gl_WorkGroupID.x/2.);\n    imageStore(destTex, posGlobal, col );\n  }\n\n";
 exports.computeShaderSource = computeShaderSource;
-var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat(10, ", local_size_y = 1, local_size_z = 1) in;\n\n  // layout (std140, binding = 0) buffer SSBOIn {\n  //   Boids data[];\n  //  } ssboIn;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  }\n  // shared Particle sharedData[", 10, "];\n\n  void main () {\n    uint localThreadID = gl_LocallInvocationID.x;\n    uint globalThreadID = gl_GlobalInvocationID.x;\n    uint workGroupSize = gl_WorkGroupSize.x;\n  }\n\n\n"); // export let fragmentShaderSource = `#version 310 es
+var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat(1, ", local_size_y = 1, local_size_z = 1) in;\n\n  // layout (std140, binding = 0) buffer SSBOIn {\n  //   Boids data[];\n  //  } ssboIn;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  }\n  // shared Particle sharedData[", 10, "];\n\n  void main () {\n    uint localThreadID = gl_LocallInvocationID.x;\n    uint globalThreadID = gl_GlobalInvocationID.x;\n    uint workGroupSize = gl_WorkGroupSize.x;\n  }\n\n\n"); // export let fragmentShaderSource = `#version 310 es
 // precision mediump float;
 // // Passed in and varied from the vertex shader.
 // in vec3 v_normal;
@@ -510,6 +510,8 @@ document.getElementById("app").innerHTML = "<h1>Hello Vanilla!</h1>";
 var NUM_PARTICLES = 1000;
 
 function main() {
+  var _this = this;
+
   // Get A WebGL context
   function checkErorrs(gl, ctx) {
     var e = gl.getError();
@@ -528,13 +530,14 @@ function main() {
   var gl = canvas.getContext("webgl2-compute", {
     antialias: false
   });
+  this.gl = gl;
 
   if (!gl) {
     return;
   } // ----------- SHADERS ----------- //
 
 
-  var programParticles = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderSource, _shaders.fragmentShaderSource]);
+  var programDrawParticles = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderSource, _shaders.fragmentShaderSource]);
   var computeShader = gl.createShader(gl.COMPUTE_SHADER);
   gl.shaderSource(computeShader, _shaders.computeShaderSource);
   gl.compileShader(computeShader);
@@ -544,11 +547,11 @@ function main() {
     console.log("error compiling shader"); // return null;
   }
 
-  var computeProgram = gl.createProgram();
-  gl.attachShader(computeProgram, computeShader);
-  gl.linkProgram(computeProgram);
+  var programCompute = gl.createProgram();
+  gl.attachShader(programCompute, computeShader);
+  gl.linkProgram(programCompute);
 
-  if (!gl.getProgramParameter(computeProgram, gl.LINK_STATUS)) {
+  if (!gl.getProgramParameter(programCompute, gl.LINK_STATUS)) {
     console.log("error linking shader");
   }
 
@@ -556,20 +559,18 @@ function main() {
 
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, NUM_PARTICLES, 1);
-  gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_WRITE, gl.RGBA8); // bind for writing
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, NUM_PARTICLES, 1);
+  gl.bindImageTexture(0, texture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA8); // bind for writing
+  // gl.activeTexture(gl.TEXTURE1)
+  // gl.bindTexture(gl.TEXTURE_2D, texture)
+  // gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_ONLY, gl.RGBA8) // bind for writing
   // make framebuffer to read from texture
 
+  gl.activeTexture(gl.TEXTURE0);
   var frameBuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer);
   gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-  checkErorrs(gl, "Texture problem");
-  gl.useProgram(computeProgram);
-  gl.uniform1i(gl.getUniformLocation(computeProgram, "distTex"), 0); // bind texture 0 
-
-  gl.dispatchCompute(NUM_PARTICLES, 1, 1);
-  gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT);
-  gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST); // const array = new Float32Array(NUM_PARTICLES)
+  checkErorrs(gl, "Texture problem"); // const array = new Float32Array(NUM_PARTICLES)
   // const ssbo = gl.createBuffer()
   // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
   // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
@@ -578,19 +579,38 @@ function main() {
   // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
 
-  var colorLocation = gl.getUniformLocation(programParticles, "u_color");
-  var matrixLocation = gl.getUniformLocation(programParticles, "u_matrix");
-  var fudgeLocation = gl.getUniformLocation(programParticles, "u_fudgeFactor");
-  var colorAttributeLocation = gl.getAttribLocation(programParticles, "a_color"); // ----------- BUFFERS ----------- //
+  var colorLocation = gl.getUniformLocation(programDrawParticles, "u_color");
+  var matrixLocation = gl.getUniformLocation(programDrawParticles, "u_matrix");
+  var fudgeLocation = gl.getUniformLocation(programDrawParticles, "u_fudgeFactor");
+  var colorAttributeLocation = gl.getAttribLocation(programDrawParticles, "a_color"); // ----------- BUFFERS ----------- //
 
   var vaoP = gl.createVertexArray();
   gl.bindVertexArray(vaoP);
-  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programParticles, 3, gl.GL_FLOAT, false, 0, 0, _setGeometry.geometryF);
-  var translation = [45, 150, 0];
-  var rotation = [degToRad(40), degToRad(25), degToRad(325)];
+  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawParticles, 3, gl.GL_FLOAT, false, 0, 0, _setGeometry.geometryF);
+  var translation = [0, 0, 0];
+  var rotation = [degToRad(0), degToRad(0), degToRad(0)];
   var scale = [1, 1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
-  drawParticles();
+  this.positionMouse = {
+    x: 0,
+    y: 0
+  };
+  window.addEventListener('mousemove', function (e) {
+    getMousePosition.call(_this, e);
+  });
+  this.timePrevious = new Date().getTime();
+  this.timeNext = this.timePrevious;
+  this.timeDelta = 0;
+  this.timeElapsed = 0;
+  this.timeStarted = this.timePrevious;
+  setInterval(function () {
+    runCompute.call(_this);
+    drawParticles.call(_this);
+    _this.timeNext = new Date().getTime();
+    _this.timeDelta = _this.timeNext - _this.timePrevious;
+    _this.timeElapsed += _this.timeDelta;
+    _this.timePrevious = _this.timeNext;
+  }, 1);
   webglLessonsUI.setupSlider("#x", {
     value: translation[0],
     slide: updatePosition(0),
@@ -602,16 +622,29 @@ function main() {
       translation[index] = ui.value;
       drawScene();
     };
-  } // ----------- DRAW ----------- //
+  } // ----------- RUN ----------- //
 
+
+  function runCompute() {
+    gl.useProgram(programCompute);
+    gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0); // bind texture 0 
+    // gl.uniform1i(gl.getUniformLocation(programCompute, "sampleTex"), 1) // bind texture 0 
+
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
+    gl.uniform1i(gl.getUniformLocation(programCompute, "u_particleCount"), NUM_PARTICLES);
+    gl.uniform1f(gl.getUniformLocation(programCompute, "u_timeElapsed"), this.timeElapsed);
+    gl.dispatchCompute(NUM_PARTICLES, 1, 1);
+    gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT);
+  }
 
   function drawParticles() {
     webglUtils.resizeCanvasToDisplaySize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST); // gl.clearColor(0, 0, 0, 0);
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
     gl.bindVertexArray(vaoP);
     var left = 0;
     var right = gl.canvas.clientWidth;
@@ -629,16 +662,20 @@ function main() {
     matrix = _m.m4.scale(matrix, scale[0], scale[1], scale[2]);
 
     for (var i = 0; i < NUM_PARTICLES; i++) {
-      gl.useProgram(programParticles);
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_distTex"), 0); // bind texture 0 
+      gl.useProgram(programDrawParticles);
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0); // bind texture 0 
 
       gl.uniformMatrix4fv(matrixLocation, false, matrix);
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleId"), i);
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleCount"), NUM_PARTICLES);
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), NUM_PARTICLES);
+      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
       var offset = 0;
       var count = 16 * 6;
       gl.drawArrays(gl.POINTS, offset, count);
     }
+
+    gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST);
   }
 
   function drawScene() {
@@ -671,13 +708,43 @@ function main() {
     matrix = _m.m4.yRotate(matrix, rotation[1]);
     matrix = _m.m4.zRotate(matrix, rotation[2]);
     matrix = _m.m4.scale(matrix, scale[0], scale[1], scale[2]);
-    gl.useProgram(programParticles);
+    gl.useProgram(programDrawParticles);
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
     var primitiveType = gl.TRIANGLES;
     var offset = 0;
     var count = 16 * 6;
     gl.drawArrays(gl.POINTS, offset, count); // gl.drawArrays(primitiveType, offset, count);
   }
+}
+
+function getRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var rect = target.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+}
+
+function getMousePosition(e) {
+  var pos = getNoPaddingNoBorderCanvasRelativeMousePosition(e, this.gl.canvas); // pos is in pixel coordinates for the canvas.
+  // so convert to WebGL clip space coordinates
+
+  var x = pos.x / this.gl.canvas.width * 2 - 1;
+  var y = pos.y / this.gl.canvas.height * -2 + 1;
+  this.positionMouse = {
+    x: x,
+    y: y
+  };
+} // assumes target or event.target is canvas
+
+
+function getNoPaddingNoBorderCanvasRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var pos = getRelativeMousePosition(event, target);
+  pos.x = pos.x * target.width / target.clientWidth;
+  pos.y = pos.y * target.height / target.clientHeight;
+  return pos;
 }
 
 function setupCompute() {}

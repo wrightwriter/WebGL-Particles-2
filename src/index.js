@@ -39,13 +39,14 @@ function checkErorrs(gl,ctx){
   const HEIGHT = canvas.height
 
   const gl = canvas.getContext("webgl2-compute", {antialias: false});
+  this.gl = gl
   if (!gl) {
     return;
   }
 
   // ----------- SHADERS ----------- //
 
-  const programParticles = webglUtils.createProgramFromSources(gl, [
+  const programDrawParticles = webglUtils.createProgramFromSources(gl, [
     vertexShaderSource,
     fragmentShaderSource
   ]);
@@ -60,11 +61,11 @@ function checkErorrs(gl,ctx){
     // return null;
   }
 
-  const computeProgram = gl.createProgram()
-  gl.attachShader(computeProgram, computeShader)
-  gl.linkProgram(computeProgram)
+  const programCompute = gl.createProgram()
+  gl.attachShader(programCompute, computeShader)
+  gl.linkProgram(programCompute)
 
-  if (!gl.getProgramParameter(computeProgram,gl.LINK_STATUS)){
+  if (!gl.getProgramParameter(programCompute,gl.LINK_STATUS)){
     console.log("error linking shader")
   }
 
@@ -74,10 +75,15 @@ function checkErorrs(gl,ctx){
   // make texture
   gl.activeTexture(gl.TEXTURE0)
   gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8,NUM_PARTICLES, 1)
-  gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_WRITE, gl.RGBA8) // bind for writing
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F,NUM_PARTICLES, 1)
+  gl.bindImageTexture(0, texture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA8) // bind for writing
+
+  // gl.activeTexture(gl.TEXTURE1)
+  // gl.bindTexture(gl.TEXTURE_2D, texture)
+  // gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_ONLY, gl.RGBA8) // bind for writing
 
   // make framebuffer to read from texture
+  gl.activeTexture(gl.TEXTURE0)
   const frameBuffer = gl.createFramebuffer()
   gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer)
   gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture,0)
@@ -85,16 +91,6 @@ function checkErorrs(gl,ctx){
   checkErorrs(gl, "Texture problem")
 
 
-  gl.useProgram(computeProgram)
-  gl.uniform1i(gl.getUniformLocation(computeProgram, "distTex"), 0) // bind texture 0 
-
-  gl.dispatchCompute(NUM_PARTICLES, 1,1)
-  gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
-
-  gl.blitFramebuffer(
-    0, 0, NUM_PARTICLES, 1,
-    0, 0, WIDTH, HEIGHT,
-    gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
 
   // const array = new Float32Array(NUM_PARTICLES)
@@ -111,10 +107,10 @@ function checkErorrs(gl,ctx){
   // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
 
-  var colorLocation = gl.getUniformLocation(programParticles, "u_color");
-  var matrixLocation = gl.getUniformLocation(programParticles, "u_matrix");
-  var fudgeLocation = gl.getUniformLocation(programParticles, "u_fudgeFactor");
-  var colorAttributeLocation = gl.getAttribLocation(programParticles, "a_color");
+  var colorLocation = gl.getUniformLocation(programDrawParticles, "u_color");
+  var matrixLocation = gl.getUniformLocation(programDrawParticles, "u_matrix");
+  var fudgeLocation = gl.getUniformLocation(programDrawParticles, "u_fudgeFactor");
+  var colorAttributeLocation = gl.getAttribLocation(programDrawParticles, "a_color");
 
   // ----------- BUFFERS ----------- //
 
@@ -124,7 +120,7 @@ function checkErorrs(gl,ctx){
   const pBuffer = makeBuffer(
     gl,
     "a_position",
-    programParticles,
+    programDrawParticles,
     3,
     gl.GL_FLOAT,
     false,
@@ -133,14 +129,31 @@ function checkErorrs(gl,ctx){
     geometryF
   );
 
-  var translation = [45, 150, 0];
-  var rotation = [degToRad(40), degToRad(25), degToRad(325)];
+  var translation = [0, 0, 0];
+  var rotation = [degToRad(0), degToRad(0), degToRad(0)];
   var scale = [1, 1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
 
+  this.positionMouse = {x: 0, y:0}
 
+  window.addEventListener('mousemove', e => {
+    getMousePosition.call(this, e)
+  })
 
-  drawParticles();
+  this.timePrevious = new Date().getTime()
+  this.timeNext = this.timePrevious
+  this.timeDelta = 0
+  this.timeElapsed = 0
+  this.timeStarted = this.timePrevious
+
+  setInterval(()=>{
+    runCompute.call(this)
+    drawParticles.call(this)
+    this.timeNext = new Date().getTime()
+    this.timeDelta = this.timeNext - this.timePrevious
+    this.timeElapsed += this.timeDelta
+    this.timePrevious = this.timeNext
+  }, 1)
 
   webglLessonsUI.setupSlider("#x", {
     value: translation[0],
@@ -154,16 +167,32 @@ function checkErorrs(gl,ctx){
       drawScene();
     };
   }
-  // ----------- DRAW ----------- //
+  // ----------- RUN ----------- //
 
+  function runCompute () {
+    gl.useProgram(programCompute)
+    gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0) // bind texture 0 
+    // gl.uniform1i(gl.getUniformLocation(programCompute, "sampleTex"), 1) // bind texture 0 
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
+    gl.uniform1i(gl.getUniformLocation(programCompute, "u_particleCount"), NUM_PARTICLES);
+    gl.uniform1f(gl.getUniformLocation(programCompute, "u_timeElapsed"), this.timeElapsed);
 
+    gl.dispatchCompute(NUM_PARTICLES, 1,1)
+    gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
+
+  }
   function drawParticles() {
     webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+
+
+
+
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    // gl.clearColor(0, 0, 0, 0);
+    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
     gl.bindVertexArray(vaoP);
@@ -186,19 +215,26 @@ function checkErorrs(gl,ctx){
     matrix = m4.zRotate(matrix, rotation[2]);
     matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
+
     
     for (let i = 0; i < NUM_PARTICLES; i++) {
-      gl.useProgram(programParticles)
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_distTex"), 0) // bind texture 0 
+      gl.useProgram(programDrawParticles)
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
       gl.uniformMatrix4fv(matrixLocation, false, matrix);
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleId"), i);
-      gl.uniform1i(gl.getUniformLocation(programParticles, "u_particleCount"), NUM_PARTICLES);
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
+      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), NUM_PARTICLES);
+      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
       
       var offset = 0;
       var count = 16 * 6;
       gl.drawArrays(gl.POINTS, offset, count);
 
-    }
+    } 
+    gl.blitFramebuffer(
+      0, 0, NUM_PARTICLES, 1,
+      0, 0, WIDTH, HEIGHT,
+      gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
   }
   function drawScene() {
@@ -239,7 +275,7 @@ function checkErorrs(gl,ctx){
     matrix = m4.zRotate(matrix, rotation[2]);
     matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
-    gl.useProgram(programParticles);
+    gl.useProgram(programDrawParticles);
     gl.uniformMatrix4fv(matrixLocation, false, matrix);
 
     var primitiveType = gl.TRIANGLES;
@@ -250,6 +286,41 @@ function checkErorrs(gl,ctx){
   }
 }
 
+
+function getRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var rect = target.getBoundingClientRect();
+
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top,
+  }
+}
+
+function getMousePosition(e) {
+  const pos = getNoPaddingNoBorderCanvasRelativeMousePosition(e, this.gl.canvas);
+
+  // pos is in pixel coordinates for the canvas.
+  // so convert to WebGL clip space coordinates
+  const x = pos.x / this.gl.canvas.width  *  2 - 1;
+  const y = pos.y / this.gl.canvas.height * -2 + 1;
+
+
+  this.positionMouse = {
+    x: x,
+    y: y
+  }
+}
+// assumes target or event.target is canvas
+function getNoPaddingNoBorderCanvasRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var pos = getRelativeMousePosition(event, target);
+
+  pos.x = pos.x * target.width  / target.clientWidth;
+  pos.y = pos.y * target.height / target.clientHeight;
+
+  return pos;  
+}
 
 function setupCompute () {
 

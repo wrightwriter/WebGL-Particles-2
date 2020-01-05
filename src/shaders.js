@@ -3,11 +3,15 @@ export let vertexShaderSource = `#version 300 es
 in vec4 a_position;
 // in vec4 a_color;
 
+// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;
+
 uniform mat4 u_matrix;
 uniform float u_fudgeFactor;
-uniform sampler2D u_distTex;
+// uniform sampler2D u_distTex;
 uniform int u_particleId;
 uniform int u_particleCount;
+uniform vec2 u_resolution;
+uniform vec2 u_positionMouse;
 
 out vec4 v_color;
 
@@ -15,14 +19,16 @@ void main() {
   //vec4 position = u_matrix * a_position;
 
   float id = float(u_particleId);
-  float count = float(u_particleCount);
-  float t =   texture(u_distTex,vec2(id/count,1)).x;
-  vec4 position = u_matrix * vec4(45.  + t*100.,150,0.6,1);
+  float particleCount = float(u_particleCount);
+  float fracId = id/particleCount;
+
+  // float t =   texture(u_distTex,vec2(fracId,0)).x;
+  // float t =   imageLoad(u_distTex,ivec2(u_particleId,0)).x;
+  vec4 position = u_matrix * vec4(0. + fracId*u_resolution.x + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);
+  // vec4 position = u_matrix * vec4(0. + t*100000. + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);
   
-  //position.x *= 0.5;
-  // float zToDivideBy = 1.0 + position.z * u_fudgeFactor;
   float zToDivideBy = 1.;
-  gl_PointSize = 3.0;
+  gl_PointSize = 2.0;
   // v_color = a_color;
   v_color = vec4(1);
   gl_Position = vec4(position.xy / zToDivideBy, position.zw);
@@ -44,16 +50,39 @@ void main() {
 `;
 export const computeShaderSource = `#version 310 es
   layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;
+  layout (rgba8, binding = 0) uniform writeonly highp image2D destTex;
+  // layout (rgba8, binding = 1) uniform readonly highp image2D sampleTex;
 
+  uniform vec2 u_resolution;
+  uniform vec2 u_positionMouse;
+  uniform int u_particleCount;
+  uniform float u_timeElapsed;
   void main() {
     ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);
-    //imageStore(destTex, storePos, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));
+    // vec4 col =  vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0);
+
+    vec2 positionMouse = u_positionMouse - 0.5;
+    // vec2 directionMouse = normalize(positionMouse - previous.xy );
+    vec4 col = vec4(0);
+    // vec4 col = vec4(1,0,0,1);
+
+    if (u_timeElapsed <=  222200.) {
+      col = vec4(1,0,0,1);
+    } else {
+      // vec4 previous = imageLoad(sampleTex, posGlobal);
+      // col = previous;
+    }
+
+    // col += float(u_particleCount)*0.0009;
+    // col =  vec4(0.000001*float(gl_LocalInvocationID.x) / float(u_particleCount));
+    // col -= 1000.;
+    // col =  vec4(gl_WorkGroupID.x/2.);
+    imageStore(destTex, posGlobal, col );
   }
 
 `;
 export const computeShaderSourceOld = `#version 310 es
-  layout (local_size_x = ${10}, local_size_y = 1, local_size_z = 1) in;
+  layout (local_size_x = ${1}, local_size_y = 1, local_size_z = 1) in;
 
   // layout (std140, binding = 0) buffer SSBOIn {
   //   Boids data[];
