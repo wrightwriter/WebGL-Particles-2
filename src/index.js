@@ -21,7 +21,7 @@ function degToRad(d) {
 document.getElementById("app").innerHTML = `<h1>Hello Vanilla!</h1>`;
 
 
-const NUM_PARTICLES = 1000;
+export const NUM_PARTICLES = 1000;
 
 function main() {
   // Get A WebGL context
@@ -70,25 +70,21 @@ function checkErorrs(gl,ctx){
   }
 
 
-  const texture = gl.createTexture()
+  // make ssbo
+  const ssbo = gl.createBuffer()
 
-  // make texture
-  gl.activeTexture(gl.TEXTURE0)
-  gl.bindTexture(gl.TEXTURE_2D, texture)
-  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F,NUM_PARTICLES, 1)
-  gl.bindImageTexture(0, texture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA8) // bind for writing
+  gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
+  gl.bufferData(gl.SHADER_STORAGE_BUFFER, new Float32Array(NUM_PARTICLES*6), gl.DYNAMIC_COPY)
+  gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
+
+
 
   // gl.activeTexture(gl.TEXTURE1)
   // gl.bindTexture(gl.TEXTURE_2D, texture)
   // gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_ONLY, gl.RGBA8) // bind for writing
 
-  // make framebuffer to read from texture
-  gl.activeTexture(gl.TEXTURE0)
-  const frameBuffer = gl.createFramebuffer()
-  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer)
-  gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture,0)
   
-  checkErorrs(gl, "Texture problem")
+  checkErorrs(gl, "SSBO problem")
 
 
 
@@ -122,11 +118,11 @@ function checkErorrs(gl,ctx){
     "a_position",
     programDrawParticles,
     3,
-    gl.GL_FLOAT,
+    gl.FLOAT,
     false,
+    3,
     0,
-    0,
-    geometryF
+    new Float32Array(NUM_PARTICLES*3)
   );
 
   var translation = [0, 0, 0];
@@ -145,6 +141,12 @@ function checkErorrs(gl,ctx){
   this.timeDelta = 0
   this.timeElapsed = 0
   this.timeStarted = this.timePrevious
+
+  runCompute.call(this)
+
+  const result = new Float32Array(NUM_PARTICLES)
+  gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, result)
+  console.log(result)
 
   setInterval(()=>{
     runCompute.call(this)
@@ -171,7 +173,7 @@ function checkErorrs(gl,ctx){
 
   function runCompute () {
     gl.useProgram(programCompute)
-    gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0) // bind texture 0 
+    // gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0) // bind texture 0 
     // gl.uniform1i(gl.getUniformLocation(programCompute, "sampleTex"), 1) // bind texture 0 
     gl.uniform2fv(gl.getUniformLocation(programCompute, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
     gl.uniform2fv(gl.getUniformLocation(programCompute, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
@@ -191,8 +193,8 @@ function checkErorrs(gl,ctx){
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.enable(gl.CULL_FACE);
     gl.enable(gl.DEPTH_TEST);
-    // gl.clearColor(0, 0, 0, 0);
-    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
 
     gl.bindVertexArray(vaoP);
@@ -215,26 +217,31 @@ function checkErorrs(gl,ctx){
     matrix = m4.zRotate(matrix, rotation[2]);
     matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, ssbo)
+    gl.vertexAttribPointer(0,3,gl.FLOAT, false, 3,0)
+    gl.enableVertexAttribArray(0)
+    gl.vertexAttribPointer(1,3,gl.FLOAT, false, 3,NUM_PARTICLES*3)
+    gl.enableVertexAttribArray(1)
 
     
-    for (let i = 0; i < NUM_PARTICLES; i++) {
+    // for (let i = 0; i < NUM_PARTICLES; i++) {
       gl.useProgram(programDrawParticles)
-      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
+      // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
       gl.uniformMatrix4fv(matrixLocation, false, matrix);
-      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
+      // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
       gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), NUM_PARTICLES);
       gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
       gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
       
       var offset = 0;
-      var count = 16 * 6;
-      gl.drawArrays(gl.POINTS, offset, count);
+      // gl.drawArrays(gl.POINTS, offset, NUM_PARTICLES);
+      gl.drawArrays(gl.POINTS, offset, 1);
 
-    } 
-    gl.blitFramebuffer(
-      0, 0, NUM_PARTICLES, 1,
-      0, 0, WIDTH, HEIGHT,
-      gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    // } 
+    // gl.blitFramebuffer(
+    //   0, 0, NUM_PARTICLES, 1,
+    //   0, 0, WIDTH, HEIGHT,
+    //   gl.COLOR_BUFFER_BIT, gl.NEAREST);
 
   }
   function drawScene() {

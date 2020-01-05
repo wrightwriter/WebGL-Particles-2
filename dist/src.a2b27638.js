@@ -392,7 +392,7 @@ function makeBuffer(gl, attributeLocationName, program, size, type, normalize, s
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(_toConsumableArray(data)), gl.STATIC_DRAW);
-  size = 3;
+  size = data.length;
   type = gl.FLOAT;
   normalize = false;
   stride = 0;
@@ -450,11 +450,14 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.computeShaderSourceOld = exports.computeShaderSource = exports.fragmentShaderSource = exports.vertexShaderSource = void 0;
-var vertexShaderSource = "#version 300 es\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\nout vec4 v_color;\n\nvoid main() {\n  //vec4 position = u_matrix * a_position;\n\n  float id = float(u_particleId);\n  float particleCount = float(u_particleCount);\n  float fracId = id/particleCount;\n\n  // float t =   texture(u_distTex,vec2(fracId,0)).x;\n  // float t =   imageLoad(u_distTex,ivec2(u_particleId,0)).x;\n  vec4 position = u_matrix * vec4(0. + fracId*u_resolution.x + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + t*100000. + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 2.0;\n  // v_color = a_color;\n  v_color = vec4(1);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
+
+var _index = require("./index");
+
+var vertexShaderSource = "#version 310 es\n\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\n// layout (std430, binding = 0) buffer SSBO {\n//   vec3 data[];\n// } ssbo;\nstruct Particle {\n  vec3 position;\n  vec3 velocity;\n};\nlayout (location = 0) in vec3 particle;\nlayout (location = 1) in vec3 particleVelocity;\n\nout vec4 v_color;\n\nvoid main() {\n  //vec4 position = u_matrix * a_position;\n\n  // float id = float(u_particleId);\n  float particleCount = float(u_particleCount);\n  // float fracId = id/particleCount;\n\n  Particle t = Particle(particle,particleVelocity);\n  // t *= 0.1;\n  // float t =   imageLoad(u_distTex,ivec2(u_particleId,0)).x;\n  // vec4 position = u_matrix * vec4(0. + sin(t.x)*1000. + fracId*u_resolution.x + u_positionMouse.x*u_resolution.y,0. + fracId*u_resolution.y ,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + 1.*t.x*u_resolution.y + u_positionMouse.x*u_resolution.y,0. + t.y*u_resolution.y ,1.,1.);\n  vec4 position = u_matrix * vec4(0. + t.position.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,0.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 10.0;\n  // v_color = a_color;\n  v_color = vec4(1);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
 exports.vertexShaderSource = vertexShaderSource;
-var fragmentShaderSource = "#version 300 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0,0,1,1.);\n}\n";
+var fragmentShaderSource = "#version 310 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0,0,1,1.);\n}\n";
 exports.fragmentShaderSource = fragmentShaderSource;
-var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) uniform writeonly highp image2D destTex;\n  // layout (rgba8, binding = 1) uniform readonly highp image2D sampleTex;\n\n  uniform vec2 u_resolution;\n  uniform vec2 u_positionMouse;\n  uniform int u_particleCount;\n  uniform float u_timeElapsed;\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    // vec4 col =  vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0);\n\n    vec2 positionMouse = u_positionMouse - 0.5;\n    // vec2 directionMouse = normalize(positionMouse - previous.xy );\n    vec4 col = vec4(0);\n    // vec4 col = vec4(1,0,0,1);\n\n    if (u_timeElapsed <=  222200.) {\n      col = vec4(1,0,0,1);\n    } else {\n      // vec4 previous = imageLoad(sampleTex, posGlobal);\n      // col = previous;\n    }\n\n    // col += float(u_particleCount)*0.0009;\n    // col =  vec4(0.000001*float(gl_LocalInvocationID.x) / float(u_particleCount));\n    // col -= 1000.;\n    // col =  vec4(gl_WorkGroupID.x/2.);\n    imageStore(destTex, posGlobal, col );\n  }\n\n";
+var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  };\n\n  layout (std430, binding = 0) buffer SSBO {\n    vec3 position[".concat(1000, "]; // TODO: make this an import\n    vec3 velocity[", 1000, "];\n  } ssbo;\n\n  uniform vec2 u_resolution;\n  uniform vec2 u_positionMouse;\n  uniform int u_particleCount;\n  uniform float u_timeElapsed;\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n\n    // Particle previous = ssbo.particle[posGlobal.x];\n    // Particle previous = Particle(ssbo.position[posGlobal.x], ssbo.velocity[posGlobal.x]);\n    Particle previous = Particle(vec3(1), vec3(1));\n    Particle next = previous;\n\n    vec2 positionMouse = u_positionMouse ;\n    vec2 directionMouse = normalize(positionMouse - previous.position.xy );\n\n\n    if (u_timeElapsed <=  0.) {\n      ssbo.position[posGlobal.x] = vec3(0.5,0.5,1);\n      ssbo.velocity[posGlobal.x] = vec3(0.5,0.5,1);\n    } else {\n      next.position.x = min(max(previous.position.x, 0.), 1.);\n      next.position.y = min(max(previous.position.y, 0.), 1.);\n\n      next.position.xy += directionMouse*0.009;\n\n      ssbo.position[posGlobal.x] = next.position;\n      ssbo.velocity[posGlobal.x] = next.velocity;\n      // ssbo.data[posGlobal.x] = vec3(positionMouse, 0);\n      // ssbo.data[posGlobal.x] = vec3(0.5,-0.5,1);\n    }\n\n  }\n\n\n");
 exports.computeShaderSource = computeShaderSource;
 var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat(1, ", local_size_y = 1, local_size_z = 1) in;\n\n  // layout (std140, binding = 0) buffer SSBOIn {\n  //   Boids data[];\n  //  } ssboIn;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  }\n  // shared Particle sharedData[", 10, "];\n\n  void main () {\n    uint localThreadID = gl_LocallInvocationID.x;\n    uint globalThreadID = gl_GlobalInvocationID.x;\n    uint workGroupSize = gl_WorkGroupSize.x;\n  }\n\n\n"); // export let fragmentShaderSource = `#version 310 es
 // precision mediump float;
@@ -480,8 +483,13 @@ var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat
 // `;
 
 exports.computeShaderSourceOld = computeShaderSourceOld;
-},{}],"src/index.js":[function(require,module,exports) {
+},{"./index":"src/index.js"}],"src/index.js":[function(require,module,exports) {
 "use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.NUM_PARTICLES = void 0;
 
 require("./styles.css");
 
@@ -508,6 +516,7 @@ function degToRad(d) {
 
 document.getElementById("app").innerHTML = "<h1>Hello Vanilla!</h1>";
 var NUM_PARTICLES = 1000;
+exports.NUM_PARTICLES = NUM_PARTICLES;
 
 function main() {
   var _this = this;
@@ -553,24 +562,17 @@ function main() {
 
   if (!gl.getProgramParameter(programCompute, gl.LINK_STATUS)) {
     console.log("error linking shader");
-  }
+  } // make ssbo
 
-  var texture = gl.createTexture(); // make texture
 
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA32F, NUM_PARTICLES, 1);
-  gl.bindImageTexture(0, texture, 0, false, 0, gl.WRITE_ONLY, gl.RGBA8); // bind for writing
-  // gl.activeTexture(gl.TEXTURE1)
+  var ssbo = gl.createBuffer();
+  gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo);
+  gl.bufferData(gl.SHADER_STORAGE_BUFFER, new Float32Array(NUM_PARTICLES * 6), gl.DYNAMIC_COPY);
+  gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo); // gl.activeTexture(gl.TEXTURE1)
   // gl.bindTexture(gl.TEXTURE_2D, texture)
   // gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_ONLY, gl.RGBA8) // bind for writing
-  // make framebuffer to read from texture
 
-  gl.activeTexture(gl.TEXTURE0);
-  var frameBuffer = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer);
-  gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-  checkErorrs(gl, "Texture problem"); // const array = new Float32Array(NUM_PARTICLES)
+  checkErorrs(gl, "SSBO problem"); // const array = new Float32Array(NUM_PARTICLES)
   // const ssbo = gl.createBuffer()
   // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
   // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
@@ -586,7 +588,7 @@ function main() {
 
   var vaoP = gl.createVertexArray();
   gl.bindVertexArray(vaoP);
-  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawParticles, 3, gl.GL_FLOAT, false, 0, 0, _setGeometry.geometryF);
+  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawParticles, 3, gl.FLOAT, false, 3, 0, new Float32Array(NUM_PARTICLES * 3));
   var translation = [0, 0, 0];
   var rotation = [degToRad(0), degToRad(0), degToRad(0)];
   var scale = [1, 1, 1];
@@ -603,6 +605,10 @@ function main() {
   this.timeDelta = 0;
   this.timeElapsed = 0;
   this.timeStarted = this.timePrevious;
+  runCompute.call(this);
+  var result = new Float32Array(NUM_PARTICLES);
+  gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, result);
+  console.log(result);
   setInterval(function () {
     runCompute.call(_this);
     drawParticles.call(_this);
@@ -626,8 +632,7 @@ function main() {
 
 
   function runCompute() {
-    gl.useProgram(programCompute);
-    gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0); // bind texture 0 
+    gl.useProgram(programCompute); // gl.uniform1i(gl.getUniformLocation(programCompute, "distTex"), 0) // bind texture 0 
     // gl.uniform1i(gl.getUniformLocation(programCompute, "sampleTex"), 1) // bind texture 0 
 
     gl.uniform2fv(gl.getUniformLocation(programCompute, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
@@ -642,9 +647,9 @@ function main() {
     webglUtils.resizeCanvasToDisplaySize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
     gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST); // gl.clearColor(0, 0, 0, 0);
-    // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
+    gl.enable(gl.DEPTH_TEST);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.bindVertexArray(vaoP);
     var left = 0;
     var right = gl.canvas.clientWidth;
@@ -660,22 +665,26 @@ function main() {
     matrix = _m.m4.yRotate(matrix, rotation[1]);
     matrix = _m.m4.zRotate(matrix, rotation[2]);
     matrix = _m.m4.scale(matrix, scale[0], scale[1], scale[2]);
+    gl.bindBuffer(gl.ARRAY_BUFFER, ssbo);
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 3, 0);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 3, NUM_PARTICLES * 3);
+    gl.enableVertexAttribArray(1); // for (let i = 0; i < NUM_PARTICLES; i++) {
 
-    for (var i = 0; i < NUM_PARTICLES; i++) {
-      gl.useProgram(programDrawParticles);
-      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0); // bind texture 0 
+    gl.useProgram(programDrawParticles); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
 
-      gl.uniformMatrix4fv(matrixLocation, false, matrix);
-      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
-      gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), NUM_PARTICLES);
-      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
-      gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
-      var offset = 0;
-      var count = 16 * 6;
-      gl.drawArrays(gl.POINTS, offset, count);
-    }
+    gl.uniformMatrix4fv(matrixLocation, false, matrix); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
 
-    gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), NUM_PARTICLES);
+    gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.positionMouse.x, this.positionMouse.y]));
+    var offset = 0; // gl.drawArrays(gl.POINTS, offset, NUM_PARTICLES);
+
+    gl.drawArrays(gl.POINTS, offset, 1); // } 
+    // gl.blitFramebuffer(
+    //   0, 0, NUM_PARTICLES, 1,
+    //   0, 0, WIDTH, HEIGHT,
+    //   gl.COLOR_BUFFER_BIT, gl.NEAREST);
   }
 
   function drawScene() {

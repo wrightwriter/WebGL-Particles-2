@@ -55,7 +55,7 @@ export function makeBuffer(
 
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([...data]), gl.STATIC_DRAW);
 
-  size = 3;
+  size = data.length;
   type = gl.FLOAT;
   normalize = false;
   stride = 0;
