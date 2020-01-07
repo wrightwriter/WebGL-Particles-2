@@ -154,6 +154,12 @@ function checkErorrs(gl,ctx){
   var vaoScreenRectangle = gl.createVertexArray()
   gl.bindVertexArray(vaoScreenRectangle)
 
+  const rectangleGeometry = new Float32Array([
+      0, gl.canvas.clientHeight, 0, 1.,
+      gl.canvas.clientWidth, gl.canvas.clientHeight, 1, 1,
+      0,0,1,1,
+      gl.canvas.clientWidth, 0, 1,1,
+    ])
   const rectangleBuffer = makeBuffer(
     gl,
     "a_position",
@@ -163,12 +169,7 @@ function checkErorrs(gl,ctx){
     false,
     4*4,
     0,
-    new Float32Array([
-      0, gl.canvas.clientHeight, 0, 1.,
-      gl.canvas.clientWidth, gl.canvas.clientHeight, 1, 1,
-      0,0,1,1,
-      gl.canvas.clientWidth, 0, 1,1,
-    ])
+    rectangleGeometry
   )
 
   
@@ -315,19 +316,20 @@ function checkErorrs(gl,ctx){
     const far = -400;
     let matrix = m4.orthographic(left, right, bottom, top, near, far);
 
-    if (ping === 1) {
-      gl.activeTexture(gl.TEXTURE1)
-      gl.bindTexture(gl.TEXTURE_2D,drawnTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0_EXT])
-    } else {
-      gl.activeTexture(gl.TEXTURE1)
-      gl.bindTexture(gl.TEXTURE_2D,feedbackTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT1_EXT])
-    }
-
     gl.useProgram(programDrawScreen)
-    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_currFrame"), 0) // bind texture 0 
-    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_previousFrame"), 1) // bind texture 0 
+    // if (ping === 1) {
+    //   gl.activeTexture(gl.TEXTURE1)
+    //   gl.bindTexture(gl.TEXTURE_2D,drawnTex)
+    //   gl.drawBuffers([ gl.COLOR_ATTACHMENT0])
+    // } else {
+    //   gl.activeTexture(gl.TEXTURE1)
+    //   gl.bindTexture(gl.TEXTURE_2D,feedbackTex)
+    //   gl.drawBuffers([ gl.COLOR_ATTACHMENT1])
+    // }
+    // checkErorrs(gl,"Problem FBO attachement");
+
+    gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_currFrame"), 0) // bind texture 0 
+    gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_previousFrame"), 1) // bind texture 0 
     // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
     gl.uniformMatrix4fv(gl.getUniformLocation(programDrawScreen, "u_matrix"), false, matrix);
     // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
@@ -335,7 +337,8 @@ function checkErorrs(gl,ctx){
     gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
     gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_positionMouse"), new Float32Array([this.state.positionMouse.x, this.state.positionMouse.y]));
     
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 20);
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, rectangleGeometry.length );
 
 
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, currentFrameBuffer)

@@ -74,6 +74,7 @@ out vec4 v_color;
 void main() {
   float particleCount = float(u_particleCount);
 
+  a_position;
   Particle t = Particle(particle,particleVelocity);
 
   vec4 position = u_matrix * vec4(0. + t.position.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);

@@ -461,7 +461,7 @@ var vertexShaderRectangleSource = "#version 310 es\nin vec4 a_position;\n\nunifo
 exports.vertexShaderRectangleSource = vertexShaderRectangleSource;
 var fragmentShaderRectangleSource = "#version 310 es\nprecision highp float;\nin vec4 v_color;\nin vec4 v_position;\nout vec4 outColor;\n\nuniform vec2 u_resolution;\nuniform sampler2D u_previousFrame;\nuniform sampler2D u_currFrame;\n\nvoid main() {\n  vec2 uv = v_position.xy/u_resolution;\n\n  uv *= 1.0;\n  uv.y = 1. - uv.y;\n\n  outColor = vec4(0,0,0,1);\n  vec3 previous =  texture(u_previousFrame,uv).xyz;\n  vec3 curr =  texture(u_currFrame,uv).xyz;\n\n  outColor.xyz += previous*1. + curr*1.0;\n}\n";
 exports.fragmentShaderRectangleSource = fragmentShaderRectangleSource;
-var vertexShaderSource = "#version 310 es\n\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\n// layout (std430, binding = 0) buffer SSBO {\n//   vec3 data[];\n// } ssbo;\nstruct Particle {\n  vec3 position;\n  vec3 velocity;\n};\nlayout (location = 0) in vec3 particle;\nlayout (location = 1) in vec3 particleVelocity;\n\nout vec4 v_color;\n\nvoid main() {\n  float particleCount = float(u_particleCount);\n\n  Particle t = Particle(particle,particleVelocity);\n\n  vec4 position = u_matrix * vec4(0. + t.position.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + u_positionMouse.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 4.0;\n  v_color = vec4(particleVelocity,1.);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
+var vertexShaderSource = "#version 310 es\n\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\n// layout (std430, binding = 0) buffer SSBO {\n//   vec3 data[];\n// } ssbo;\nstruct Particle {\n  vec3 position;\n  vec3 velocity;\n};\nlayout (location = 0) in vec3 particle;\nlayout (location = 1) in vec3 particleVelocity;\n\nout vec4 v_color;\n\nvoid main() {\n  float particleCount = float(u_particleCount);\n\n  a_position;\n  Particle t = Particle(particle,particleVelocity);\n\n  vec4 position = u_matrix * vec4(0. + t.position.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + u_positionMouse.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 4.0;\n  v_color = vec4(particleVelocity,1.);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
 exports.vertexShaderSource = vertexShaderSource;
 var fragmentShaderSource = "#version 310 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\n\nvoid main() {\n  // outColor = v_color;\n  vec2 uv = 2.*gl_PointCoord - 1.;\n\n  float r = 1.;\n  outColor = vec4(v_color.x,v_color.y,1,1.) * smoothstep(r, r*0.99, length(uv));\n}\n";
 exports.fragmentShaderSource = fragmentShaderSource;
@@ -598,7 +598,8 @@ function main() {
   checkErorrs(gl, "SSBO problem");
   var vaoScreenRectangle = gl.createVertexArray();
   gl.bindVertexArray(vaoScreenRectangle);
-  var rectangleBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawScreen, 4, gl.FLOAT, false, 4 * 4, 0, new Float32Array([0, gl.canvas.clientHeight, 0, 1., gl.canvas.clientWidth, gl.canvas.clientHeight, 1, 1, 0, 0, 1, 1, gl.canvas.clientWidth, 0, 1, 1]));
+  var rectangleGeometry = new Float32Array([0, gl.canvas.clientHeight, 0, 1., gl.canvas.clientWidth, gl.canvas.clientHeight, 1, 1, 0, 0, 1, 1, gl.canvas.clientWidth, 0, 1, 1]);
+  var rectangleBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawScreen, 4, gl.FLOAT, false, 4 * 4, 0, rectangleGeometry);
   var vaoP = gl.createVertexArray();
   gl.bindVertexArray(vaoP);
   var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawParticles, 1, gl.FLOAT, false, 0, 0, new Float32Array(_vars.NUM_PARTICLES)); // ----------- ATTRIBUTES ----------- //
@@ -731,20 +732,20 @@ function main() {
 
     var matrix = _m.m4.orthographic(left, right, bottom, top, near, far);
 
-    if (ping === 1) {
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, drawnTex);
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0_EXT]);
-    } else {
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, feedbackTex);
-      gl.drawBuffers([gl.COLOR_ATTACHMENT1_EXT]);
-    }
+    gl.useProgram(programDrawScreen); // if (ping === 1) {
+    //   gl.activeTexture(gl.TEXTURE1)
+    //   gl.bindTexture(gl.TEXTURE_2D,drawnTex)
+    //   gl.drawBuffers([ gl.COLOR_ATTACHMENT0])
+    // } else {
+    //   gl.activeTexture(gl.TEXTURE1)
+    //   gl.bindTexture(gl.TEXTURE_2D,feedbackTex)
+    //   gl.drawBuffers([ gl.COLOR_ATTACHMENT1])
+    // }
+    // checkErorrs(gl,"Problem FBO attachement");
 
-    gl.useProgram(programDrawScreen);
-    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_currFrame"), 0); // bind texture 0 
+    gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_currFrame"), 0); // bind texture 0 
 
-    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_previousFrame"), 1); // bind texture 0 
+    gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_previousFrame"), 1); // bind texture 0 
     // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
 
     gl.uniformMatrix4fv(gl.getUniformLocation(programDrawScreen, "u_matrix"), false, matrix); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
@@ -752,7 +753,7 @@ function main() {
     gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_particleCount"), _vars.NUM_PARTICLES);
     gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
     gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_positionMouse"), new Float32Array([this.state.positionMouse.x, this.state.positionMouse.y]));
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 20);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, rectangleGeometry.length);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, currentFrameBuffer);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
     gl.blitFramebuffer(0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight, 0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight, gl.COLOR_BUFFER_BIT, gl.NEAREST);
@@ -863,7 +864,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "4176" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "37037" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
