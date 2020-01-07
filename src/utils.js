@@ -55,11 +55,6 @@ export function makeBuffer(
 
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([...data]), gl.STATIC_DRAW);
 
-  size = data.length;
-  type = gl.FLOAT;
-  normalize = false;
-  stride = 0;
-  offset = 0;
   gl.vertexAttribPointer(
     positionAttributeLocation,
     size,
