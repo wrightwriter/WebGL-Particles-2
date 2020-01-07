@@ -277,7 +277,7 @@ function checkErorrs(gl,ctx){
   function updatePosition(index) {
     return function(event, ui) {
       translation[index] = ui.value;
-      drawScene();
+      // drawScene();
     };
   }
   // ----------- RUN ----------- //
@@ -316,11 +316,11 @@ function checkErorrs(gl,ctx){
     if (ping === 1) {
       gl.activeTexture(gl.TEXTURE1)
       gl.bindTexture(gl.TEXTURE_2D,drawnTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT1])
+      gl.drawBuffers([gl.COLOR_ATTACHMENT1_EXT])
     } else {
       gl.activeTexture(gl.TEXTURE1)
       gl.bindTexture(gl.TEXTURE_2D,feedbackTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0])
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0_EXT])
     }
 
     gl.useProgram(programDrawScreen)
