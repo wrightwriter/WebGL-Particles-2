@@ -297,6 +297,8 @@ function checkErorrs(gl,ctx){
   let ping = 1
   function drawScreen() {
     // webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+    gl.activeTexture(gl.TEXTURE0)
+    gl.bindTexture(gl.TEXTURE_2D, null)
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, drawnFrameBuffer)
     gl.viewport(0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight);
@@ -316,11 +318,11 @@ function checkErorrs(gl,ctx){
     if (ping === 1) {
       gl.activeTexture(gl.TEXTURE1)
       gl.bindTexture(gl.TEXTURE_2D,drawnTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT1_EXT])
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0_EXT])
     } else {
       gl.activeTexture(gl.TEXTURE1)
       gl.bindTexture(gl.TEXTURE_2D,feedbackTex)
-      gl.drawBuffers([gl.COLOR_ATTACHMENT0_EXT])
+      gl.drawBuffers([gl.COLOR_ATTACHMENT1_EXT])
     }
 
     gl.useProgram(programDrawScreen)
