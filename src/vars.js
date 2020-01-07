@@ -1,0 +1,1 @@
+export const NUM_PARTICLES = 1000

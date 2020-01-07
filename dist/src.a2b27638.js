@@ -392,11 +392,6 @@ function makeBuffer(gl, attributeLocationName, program, size, type, normalize, s
   gl.enableVertexAttribArray(positionAttributeLocation);
   gl.bindBuffer(gl.ARRAY_BUFFER, pointsBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(_toConsumableArray(data)), gl.STATIC_DRAW);
-  size = 3;
-  type = gl.FLOAT;
-  normalize = false;
-  stride = 0;
-  offset = 0;
   gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset);
   var bufferObject = {
     attributeLocation: positionAttributeLocation,
@@ -443,44 +438,36 @@ function loadShader(gl, shaderSource, shaderType, opt_errorCallback) {
     return null;
   }
 }
+},{}],"src/vars.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.NUM_PARTICLES = void 0;
+var NUM_PARTICLES = 1000;
+exports.NUM_PARTICLES = NUM_PARTICLES;
 },{}],"src/shaders.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.computeShaderSourceOld = exports.computeShaderSource = exports.fragmentShaderSource = exports.vertexShaderSource = void 0;
-var vertexShaderSource = "#version 310 es\n\nin vec4 a_position;\nin vec4 a_color;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n\nout vec4 v_color;\n\nvoid main() {\n  vec4 position = u_matrix * a_position;\n\n  \n  //position.x *= 0.5;\n  float zToDivideBy = 1.0 + position.z * u_fudgeFactor;\n  gl_PointSize = 3.0;\n  v_color = a_color;\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
-exports.vertexShaderSource = vertexShaderSource;
-var fragmentShaderSource = "#version 310 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\nvoid main() {\n  // outColor = v_color;\n  outColor = vec4(0.5,0.8,0.6,1.);\n}\n";
-exports.fragmentShaderSource = fragmentShaderSource;
-var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n  layout (rgba8, binding = 0) writeonly uniform highp image2D destTex;\n\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n    imageStore(destTex, posGlobal, vec4(vec2(gl_WorkGroupID.xy) / vec2(gl_NumWorkGroups.xy), 0.0, 1.0));\n  }\n\n";
-exports.computeShaderSource = computeShaderSource;
-var computeShaderSourceOld = "#version 310 es\n  layout (local_size_x = ".concat(10, ", local_size_y = 1, local_size_z = 1) in;\n\n  // layout (std140, binding = 0) buffer SSBOIn {\n  //   Boids data[];\n  //  } ssboIn;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  }\n  // shared Particle sharedData[", 10, "];\n\n  void main () {\n    uint localThreadID = gl_LocallInvocationID.x;\n    uint globalThreadID = gl_GlobalInvocationID.x;\n    uint workGroupSize = gl_WorkGroupSize.x;\n  }\n\n\n"); // export let fragmentShaderSource = `#version 310 es
-// precision mediump float;
-// // Passed in and varied from the vertex shader.
-// in vec3 v_normal;
-// uniform vec3 u_reverseLightDirection;
-// uniform vec4 u_color;
-// // we need to declare an output for the fragment shader
-// out vec4 outColor;
-// void main() {
-//   // because v_normal is a varying it's interpolated
-//   // so it will not be a uint vector. Normalizing it
-//   // will make it a unit vector again
-//   vec3 normal = normalize(v_normal);
-//   // compute the light by taking the dot product
-//   // of the normal to the light's reverse direction
-//   float light = dot(normal, u_reverseLightDirection);
-//   outColor = u_color;
-//   // Lets multiply just the color portion (not the alpha)
-//   // by the light
-//   outColor.rgb *= light;
-// }
-// `;
+exports.computeShaderSource = exports.fragmentShaderSource = exports.vertexShaderSource = exports.fragmentShaderRectangleSource = exports.vertexShaderRectangleSource = void 0;
 
-exports.computeShaderSourceOld = computeShaderSourceOld;
-},{}],"src/index.js":[function(require,module,exports) {
+var _vars = require("./vars");
+
+var vertexShaderRectangleSource = "#version 310 es\nin vec4 a_position;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\nuniform vec2 u_resolution;\n\nout vec4 v_color;\nout vec4 v_position;\n\nvoid main() {\n\n  vec4 position = u_matrix * a_position;\n  float zToDivideBy = 1.;\n  v_color = vec4(1,1,1,1.);\n  v_position = a_position;\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n\n";
+exports.vertexShaderRectangleSource = vertexShaderRectangleSource;
+var fragmentShaderRectangleSource = "#version 310 es\nprecision highp float;\nin vec4 v_color;\nin vec4 v_position;\nout vec4 outColor;\n\nuniform vec2 u_resolution;\nuniform sampler2D u_previousFrame;\nuniform sampler2D u_currFrame;\n\nvoid main() {\n  vec2 uv = v_position.xy/u_resolution;\n\n  uv *= 1.0;\n  uv.y = 1. - uv.y;\n\n  outColor = vec4(0,0,0,1);\n  vec3 previous =  texture(u_previousFrame,uv).xyz;\n  vec3 curr =  texture(u_currFrame,uv).xyz;\n\n  outColor.xyz += previous*1. + curr*1.0;\n}\n";
+exports.fragmentShaderRectangleSource = fragmentShaderRectangleSource;
+var vertexShaderSource = "#version 310 es\n\n\nin vec4 a_position;\n// in vec4 a_color;\n\n// layout (rgba8, binding = 0) uniform readonly highp image2D u_distTex;\n\nuniform mat4 u_matrix;\nuniform float u_fudgeFactor;\n// uniform sampler2D u_distTex;\nuniform int u_particleId;\nuniform int u_particleCount;\nuniform vec2 u_resolution;\nuniform vec2 u_positionMouse;\n\n// layout (std430, binding = 0) buffer SSBO {\n//   vec3 data[];\n// } ssbo;\nstruct Particle {\n  vec3 position;\n  vec3 velocity;\n};\nlayout (location = 0) in vec3 particle;\nlayout (location = 1) in vec3 particleVelocity;\n\nout vec4 v_color;\n\nvoid main() {\n  float particleCount = float(u_particleCount);\n\n  Particle t = Particle(particle,particleVelocity);\n\n  vec4 position = u_matrix * vec4(0. + t.position.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  // vec4 position = u_matrix * vec4(0. + u_positionMouse.x*u_resolution.x,u_resolution.y-t.position.y*u_resolution.y,1.,1.);\n  \n  float zToDivideBy = 1.;\n  gl_PointSize = 4.0;\n  v_color = vec4(particleVelocity,1.);\n  gl_Position = vec4(position.xy / zToDivideBy, position.zw);\n}\n";
+exports.vertexShaderSource = vertexShaderSource;
+var fragmentShaderSource = "#version 310 es\n\nprecision mediump float;\n\nin vec4 v_color;\n\nout vec4 outColor;\n\n\nvoid main() {\n  // outColor = v_color;\n  vec2 uv = 2.*gl_PointCoord - 1.;\n\n  float r = 1.;\n  outColor = vec4(v_color.x,v_color.y,1,1.) * smoothstep(r, r*0.99, length(uv));\n}\n";
+exports.fragmentShaderSource = fragmentShaderSource;
+var computeShaderSource = "#version 310 es\n  layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n\n  struct Particle {\n    vec3 position;\n    vec3 velocity;\n  };\n\n  layout (std430, binding = 0) buffer SSBO {\n    vec3 position[".concat(_vars.NUM_PARTICLES, "]; // TODO: make this an import\n    vec3 velocity[").concat(_vars.NUM_PARTICLES, "];\n  } ssbo;\n\n  uniform vec2 u_resolution;\n  uniform vec2 u_positionMouse;\n  uniform float u_mousePressed;\n  uniform int u_particleCount;\n  uniform float u_timeElapsed;\n  uniform float u_avoidance;\n  uniform vec2 u_gravity;\n  \n\n  float r11(float i) {return fract(sin(i*212.12)*124.41);}\n  vec3 r13(float i) {return vec3( r11(i), r11(i*2.4), r11(i*1.57));} \n\n  void main() {\n    ivec2 posGlobal = ivec2(gl_GlobalInvocationID.xy);\n\n    // Particle previous = ssbo.particle[posGlobal.x];\n    // Particle previous = Particle(ssbo.position[posGlobal.x], ssbo.velocity[posGlobal.x]);\n    Particle previous = Particle(ssbo.position[posGlobal.x], ssbo.velocity[posGlobal.x]);\n    Particle next = previous;\n\n    vec2 positionMouse = u_positionMouse ;\n    vec2 directionMouse = normalize(positionMouse - previous.position.xy );\n\n\n    if (u_timeElapsed <=  20.) {\n      // ssbo.position[posGlobal.x] = vec3(0.5,0.5,1);\n      ssbo.position[posGlobal.x] = r13(float(posGlobal.x) + 1.);\n      ssbo.position[posGlobal.x].z = 1.;\n      // ssbo.velocity[posGlobal.x] = vec3(0);\n    } else {\n      // -- bounds -- //\n      if (previous.position.x < 0.) {\n        previous.velocity.x = -1.*abs(previous.velocity.x);\n      }\n      if (previous.position.x > 1.){\n        previous.velocity.x = 1.*abs(previous.velocity.x);\n      }\n      if (previous.position.y < 0.) {\n        previous.velocity.y = -1.*abs(previous.velocity.y);\n      }\n      if (previous.position.y > 1.) {\n        previous.velocity.y = 1.*abs(previous.velocity.y);\n      }\n      \n      // -- mouse -- //\n      if (u_mousePressed == 1.) {\n        previous.velocity.x -= directionMouse.x*0.0001;\n        previous.velocity.y -= directionMouse.y*0.0003;\n      }\n\n\n      \n      // -- avoidance -- //\n      for (int i = 0; i < u_particleCount; i++) {\n        vec3 otherPos = ssbo.position[int(i)];\n        vec3 direction = normalize(otherPos - previous.position);\n        float dis = length(otherPos - previous.position);\n        previous.velocity += direction * exp(-dis*(200. - u_avoidance*190.))*0.0001;\n      }\n\n      // -- vortex -- //\n      float frId = 10.*float(posGlobal.x)/float(u_particleCount);\n      vec2 vortexPos = vec2(sin(frId + u_timeElapsed*0.001), cos(frId + u_timeElapsed*0.001))*0.5 + 0.5;\n      vec2 vortexDir = normalize(vortexPos - previous.position.xy);\n      // previous.velocity.xy -= vortexDir*0.0001;\n      \n\n\n      \n      // -- damping -- //\n      previous.velocity *= 0.99;\n      // -- gravity -- //\n      previous.velocity.xy -= u_gravity*0.0003;\n\n      next.position -= previous.velocity;\n      next.velocity = previous.velocity;\n\n      // -- bounds -- //\n      // if (next.position.y == 0.) {\n      //   next.position.y = abs(next.position.y);        \n      // }\n      // next.position.y = max(next.position.y, 0.);\n      // next.position.xy = max(min(next.position.xy, vec2(1.)), vec2(0));\n\n      ssbo.position[posGlobal.x] = next.position;\n      ssbo.velocity[posGlobal.x] = next.velocity;\n    }\n\n  }\n\n\n");
+exports.computeShaderSource = computeShaderSource;
+},{"./vars":"src/vars.js"}],"src/index.js":[function(require,module,exports) {
 "use strict";
 
 require("./styles.css");
@@ -492,6 +479,8 @@ var _setGeometry = require("./setGeometry");
 var _setColors = require("./setColors");
 
 var _utils = require("./utils");
+
+var _vars = require("./vars");
 
 var _shaders = require("./shaders.js");
 
@@ -507,9 +496,10 @@ function degToRad(d) {
 
 
 document.getElementById("app").innerHTML = "<h1>Hello Vanilla!</h1>";
-var NUM_PARTICLES = 1000;
 
 function main() {
+  var _this = this;
+
   // Get A WebGL context
   function checkErorrs(gl, ctx) {
     var e = gl.getError();
@@ -528,14 +518,15 @@ function main() {
   var gl = canvas.getContext("webgl2-compute", {
     antialias: false
   });
+  this.gl = gl;
 
   if (!gl) {
     return;
   } // ----------- SHADERS ----------- //
 
 
-  var programParticles = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderSource, _shaders.fragmentShaderSource]);
-  var computeShaderSource2 = "#version 310 es\n    layout (local_size_x = ".concat(NUM_PARTICLES, ", local_size_y = 1, local_size_z = 1) in;\n    layout (std430, binding = 0) buffer SSBO {\n      float data[];\n    } ssbo;\n    uniform uvec4 numElements;\n    \n    void main() {\n       float tmp;\n      uint ixj = gl_GlobalInvocationID.x ^ numElements.y;\n      if (ixj > gl_GlobalInvocationID.x)\n      {\n        if ((gl_GlobalInvocationID.x & numElements.x) == 0u)\n        {\n          if (ssbo.data[gl_GlobalInvocationID.x] > ssbo.data[ixj])\n          {\n            tmp = ssbo.data[gl_GlobalInvocationID.x];\n            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];\n            ssbo.data[ixj] = tmp;\n          }\n        }\n        else\n        {\n          if (ssbo.data[gl_GlobalInvocationID.x] < ssbo.data[ixj])\n          {\n            tmp = ssbo.data[gl_GlobalInvocationID.x];\n            ssbo.data[gl_GlobalInvocationID.x] = ssbo.data[ixj];\n            ssbo.data[ixj] = tmp;\n          }\n        }\n      }\n    }\n    ");
+  var programDrawParticles = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderSource, _shaders.fragmentShaderSource]);
+  var programDrawScreen = webglUtils.createProgramFromSources(gl, [_shaders.vertexShaderRectangleSource, _shaders.fragmentShaderRectangleSource]);
   var computeShader = gl.createShader(gl.COMPUTE_SHADER);
   gl.shaderSource(computeShader, _shaders.computeShaderSource);
   gl.compileShader(computeShader);
@@ -545,67 +536,159 @@ function main() {
     console.log("error compiling shader"); // return null;
   }
 
-  var computeProgram = gl.createProgram();
-  gl.attachShader(computeProgram, computeShader);
-  gl.linkProgram(computeProgram);
+  var programCompute = gl.createProgram();
+  gl.attachShader(programCompute, computeShader);
+  gl.linkProgram(programCompute);
 
-  if (!gl.getProgramParameter(computeProgram, gl.LINK_STATUS)) {
+  if (!gl.getProgramParameter(programCompute, gl.LINK_STATUS)) {
     console.log("error linking shader");
-  } // const array = new Float32Array(NUM_PARTICLES)
-  // const ssbo = gl.createBuffer()
-  // gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo)
-  // gl.bufferData(gl.SHADER_STORAGE_BUFFER,array, gl.DYNAMIC_COPY)
-  // gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo)
+  } // ----------- BUFFERS ----------- //
+  // SSBO
 
 
-  var texture = gl.createTexture(); // make texture
+  var ssbo = gl.createBuffer();
+  gl.bindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo);
+  gl.bufferData(gl.SHADER_STORAGE_BUFFER, new Float32Array(_vars.NUM_PARTICLES * 6), gl.DYNAMIC_COPY);
+  gl.bindBufferBase(gl.SHADER_STORAGE_BUFFER, 0, ssbo); // Current texture
 
-  gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.RGBA8, NUM_PARTICLES, 1);
-  gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_WRITE, gl.RGBA8); // bind for writing
-  // make framebuffer to read from texture
+  var texWidth = gl.canvas.clientWidth;
+  var texHeight = gl.canvas.clientHeight;
+  var currTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, currTex);
+  {
+    var data = null;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texWidth, texHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  var currentFrameBuffer = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, currentFrameBuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, currTex, 0); // Draw texture
 
-  var frameBuffer = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frameBuffer);
-  gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
-  checkErorrs(gl, "Texture problem");
-  gl.useProgram(computeProgram);
-  gl.uniform1i(gl.getUniformLocation(computeProgram, "distTex"), 0); // bind texture 0 
+  var drawnTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, drawnTex);
+  {
+    var _data = null;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texWidth, texHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  var drawnFrameBuffer = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, drawnFrameBuffer);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, drawnTex, 0); // Feedback texture
 
-  gl.dispatchCompute(NUM_PARTICLES, 1, 1);
-  gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT);
-  gl.blitFramebuffer(0, 0, NUM_PARTICLES, 1, 0, 0, WIDTH, HEIGHT, gl.COLOR_BUFFER_BIT, gl.NEAREST); // for (let i = 0; i < 1024; i++){
-  //   gl.useProgram(computeProgram)
-  //   gl.dispatchCompute(512/16, 512/16,1)
-  //   gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT)
-  //   checkErorrs(gl, "Dispatching compute shader")
-  // }
-  // show texture to Canvas
-  // gl.useProgram(computeProgram)
-  // gl.dispatchCompute(NUM_PARTICLES, 1,1)
-  // for (let k = )
-  // ----------- ATTRIBUTES ----------- //
+  var feedbackTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, feedbackTex);
+  {
+    var _data2 = null;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, texWidth, texHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, feedbackTex, 0); // const drawnFrameBufferFeedback = gl.createFramebuffer()
+  // gl.bindFramebuffer(gl.FRAMEBUFFER, drawnFrameBufferFeedback)
+  // gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, feedbackTex, 0)
+  // gl.activeTexture(gl.TEXTURE1)
+  // gl.bindTexture(gl.TEXTURE_2D, texture)
+  // gl.bindImageTexture(0, texture, 0, false, 0, gl.READ_ONLY, gl.RGBA8) // bind for writing
+
+  checkErorrs(gl, "SSBO problem");
+  var vaoScreenRectangle = gl.createVertexArray();
+  gl.bindVertexArray(vaoScreenRectangle);
+  var rectangleBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawScreen, 4, gl.FLOAT, false, 4 * 4, 0, new Float32Array([0, gl.canvas.clientHeight, 0, 1., gl.canvas.clientWidth, gl.canvas.clientHeight, 1, 1, 0, 0, 1, 1, gl.canvas.clientWidth, 0, 1, 1]));
+  var vaoP = gl.createVertexArray();
+  gl.bindVertexArray(vaoP);
+  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programDrawParticles, 1, gl.FLOAT, false, 0, 0, new Float32Array(_vars.NUM_PARTICLES)); // ----------- ATTRIBUTES ----------- //
   // var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
   // var pointsAttributeLocation = gl.getAttribLocation(program, "a_points");
 
-  var colorLocation = gl.getUniformLocation(programParticles, "u_color");
-  var matrixLocation = gl.getUniformLocation(programParticles, "u_matrix");
-  var fudgeLocation = gl.getUniformLocation(programParticles, "u_fudgeFactor");
-  var colorAttributeLocation = gl.getAttribLocation(programParticles, "a_color"); // ----------- BUFFERS ----------- //
+  var colorLocation = gl.getUniformLocation(programDrawParticles, "u_color");
+  var matrixLocation = gl.getUniformLocation(programDrawParticles, "u_matrix");
+  var fudgeLocation = gl.getUniformLocation(programDrawParticles, "u_fudgeFactor");
+  var colorAttributeLocation = gl.getAttribLocation(programDrawParticles, "a_color"); // ----------- SETUP ----------- //
 
-  var vaoP = gl.createVertexArray();
-  gl.bindVertexArray(vaoP);
-  var pBuffer = (0, _utils.makeBuffer)(gl, "a_position", programParticles, 3, gl.GL_FLOAT, false, 0, 0, _setGeometry.geometryF);
-  var translation = [45, 150, 0];
-  var rotation = [degToRad(40), degToRad(25), degToRad(325)];
+  var translation = [0, 0, 0];
+  var rotation = [degToRad(0), degToRad(0), degToRad(0)];
   var scale = [1, 1, 1];
   var color = [Math.random(), Math.random(), Math.random(), 1];
-  drawParticles();
+  this.state = {
+    gravity: {
+      x: 0.,
+      y: 0.
+    },
+    timePrevious: new Date().getTime(),
+    timeNext: this.timePrevious,
+    timeDelta: 0,
+    timeElapsed: 0,
+    timeStarted: this.timePrevious,
+    positionMouse: {
+      x: 0,
+      y: 0
+    },
+    mousePressed: 0,
+    avoidance: 0,
+    formula: "vec2(sin(frId + u_timeElapsed*0.001), cos(frId + u_timeElapsed*0.001))"
+  };
+  var formulaInput = document.querySelector("#formula");
+  formulaInput.addEventListener("oninput", function (e) {
+    formulaInput.innerHTML = e.target.value;
+    _this.state.formula = e.target.value;
+    gl.shaderSource(computeShader, _shaders.computeShaderSource);
+    gl.compileShader(computeShader);
+  });
+
+  document.body.onmousedown = function (e) {
+    _this.state.mousePressed = 1;
+  };
+
+  document.body.onmouseup = function (e) {
+    _this.state.mousePressed = 0;
+  };
+
+  window.addEventListener('mousemove', function (e) {
+    getMousePosition.call(_this, e);
+  });
+  runCompute.call(this); // const result = new Float32Array(NUM_PARTICLES)
+  // gl.getBufferSubData(gl.SHADER_STORAGE_BUFFER, 0, result)
+  // console.log(result)
+
+  setInterval(function () {
+    runCompute.call(_this);
+    drawParticles.call(_this);
+    drawScreen.call(_this);
+    _this.state.timeNext = new Date().getTime();
+    _this.state.timeDelta = _this.state.timeNext - _this.state.timePrevious;
+    _this.state.timeElapsed += _this.state.timeDelta;
+    _this.state.timePrevious = _this.state.timeNext;
+  }, 1);
   webglLessonsUI.setupSlider("#x", {
     value: translation[0],
     slide: updatePosition(0),
     max: gl.canvas.width
+  });
+  webglLessonsUI.setupSlider("#gravity-x", {
+    value: 500,
+    slide: function slide(e, ui) {
+      _this.state.gravity.x = ui.value / 1000 - 0.5;
+    },
+    max: 1000
+  });
+  webglLessonsUI.setupSlider("#gravity-y", {
+    value: 500,
+    slide: function slide(e, ui) {
+      _this.state.gravity.y = ui.value / 1000 - 0.5;
+    },
+    max: 1000
+  });
+  webglLessonsUI.setupSlider("#avoidance", {
+    value: 0,
+    slide: function slide(e, ui) {
+      _this.state.avoidance = ui.value / 1000;
+    },
+    max: 1000
   });
 
   function updatePosition(index) {
@@ -613,31 +696,31 @@ function main() {
       translation[index] = ui.value;
       drawScene();
     };
-  } // ----------- DRAW ----------- //
+  } // ----------- RUN ----------- //
 
 
-  function drawParticles() {
-    webglUtils.resizeCanvasToDisplaySize(gl.canvas);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    for (var i = 0; i < NUM_PARTICLES; i++) {}
+  function runCompute() {
+    gl.useProgram(programCompute);
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_positionMouse"), new Float32Array([this.state.positionMouse.x, this.state.positionMouse.y]));
+    gl.uniform2fv(gl.getUniformLocation(programCompute, "u_gravity"), new Float32Array([this.state.gravity.x, this.state.gravity.y]));
+    gl.uniform1f(gl.getUniformLocation(programCompute, "u_avoidance"), this.state.avoidance);
+    gl.uniform1f(gl.getUniformLocation(programCompute, "u_mousePressed"), this.state.mousePressed);
+    gl.uniform1i(gl.getUniformLocation(programCompute, "u_particleCount"), _vars.NUM_PARTICLES);
+    gl.uniform1f(gl.getUniformLocation(programCompute, "u_timeElapsed"), this.state.timeElapsed);
+    gl.dispatchCompute(_vars.NUM_PARTICLES, 1, 1);
+    gl.memoryBarrier(gl.SHADER_IMAGE_ACCESS_BARRIER_BIT);
   }
 
-  function drawScene() {
-    webglUtils.resizeCanvasToDisplaySize(gl.canvas);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.enable(gl.CULL_FACE);
-    gl.enable(gl.DEPTH_TEST);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.bindVertexArray(vaoF);
-    gl.uniform4fv(colorLocation, color);
-    var fudgeFactor = 0; // gl.uniform1f(fudgeLocation, fudgeFactor);
+  var ping = 1;
 
+  function drawScreen() {
+    // webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, drawnFrameBuffer);
+    gl.viewport(0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.bindVertexArray(vaoScreenRectangle);
     var left = 0;
     var right = gl.canvas.clientWidth;
     var bottom = gl.canvas.clientHeight;
@@ -645,29 +728,113 @@ function main() {
     var near = 400;
     var far = -400;
 
-    var matrix = _m.m4.orthographic(left, right, bottom, top, near, far); // var matrix = m4.projection(
-    //   gl.canvas.clientWidth,
-    //   gl.canvas.clientHeight,
-    //   400
-    // );
+    var matrix = _m.m4.orthographic(left, right, bottom, top, near, far);
 
+    if (ping === 1) {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, drawnTex);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT1]);
+    } else {
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, feedbackTex);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+    }
 
-    matrix = _m.m4.translate(matrix, translation[0], translation[1], translation[2]);
-    matrix = _m.m4.xRotate(matrix, rotation[0]);
-    matrix = _m.m4.yRotate(matrix, rotation[1]);
-    matrix = _m.m4.zRotate(matrix, rotation[2]);
-    matrix = _m.m4.scale(matrix, scale[0], scale[1], scale[2]);
-    gl.useProgram(programParticles);
-    gl.uniformMatrix4fv(matrixLocation, false, matrix);
-    var primitiveType = gl.TRIANGLES;
-    var offset = 0;
-    var count = 16 * 6;
-    gl.drawArrays(gl.POINTS, offset, count); // gl.drawArrays(primitiveType, offset, count);
+    gl.useProgram(programDrawScreen);
+    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_currFrame"), 0); // bind texture 0 
+
+    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_previousFrame"), 1); // bind texture 0 
+    // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
+
+    gl.uniformMatrix4fv(gl.getUniformLocation(programDrawScreen, "u_matrix"), false, matrix); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
+
+    gl.uniform1i(gl.getUniformLocation(programDrawScreen, "u_particleCount"), _vars.NUM_PARTICLES);
+    gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programDrawScreen, "u_positionMouse"), new Float32Array([this.state.positionMouse.x, this.state.positionMouse.y]));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 20);
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, currentFrameBuffer);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
+    gl.blitFramebuffer(0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight, 0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight, gl.COLOR_BUFFER_BIT, gl.NEAREST);
+    ping = 1 - ping;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  function drawParticles() {
+    webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, currentFrameBuffer);
+    gl.viewport(0, 0, gl.canvas.clientWidth, gl.canvas.clientHeight);
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.bindVertexArray(vaoP);
+    var left = 0;
+    var right = gl.canvas.clientWidth;
+    var bottom = gl.canvas.clientHeight;
+    var top = 0;
+    var near = 400;
+    var far = -400;
+
+    var matrix = _m.m4.orthographic(left, right, bottom, top, near, far);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, ssbo); // may be able to move these out of the drawParticles() function
+
+    gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 2 * 4, 0);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 2 * 4, _vars.NUM_PARTICLES * 1 * 4);
+    gl.enableVertexAttribArray(1); // for (let i = 0; i < NUM_PARTICLES; i++) {
+
+    gl.useProgram(programDrawParticles); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_distTex"), 0) // bind texture 0 
+
+    gl.uniformMatrix4fv(matrixLocation, false, matrix); // gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleId"), i);
+
+    gl.uniform1i(gl.getUniformLocation(programDrawParticles, "u_particleCount"), _vars.NUM_PARTICLES);
+    gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_resolution"), new Float32Array([gl.canvas.clientWidth, gl.canvas.clientHeight]));
+    gl.uniform2fv(gl.getUniformLocation(programDrawParticles, "u_positionMouse"), new Float32Array([this.state.positionMouse.x, this.state.positionMouse.y]));
+    gl.drawArrays(gl.POINTS, 0, _vars.NUM_PARTICLES); // } 
+    // gl.blitFramebuffer(
+    //   0, 0, WIDTH, HEIGHT,
+    //   0, 0, WIDTH, HEIGHT,
+    //   gl.COLOR_BUFFER_BIT, gl.NEAREST);
   }
 }
 
+function getRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var rect = target.getBoundingClientRect();
+  return {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+}
+
+function getMousePosition(e) {
+  var pos = getNoPaddingNoBorderCanvasRelativeMousePosition(e, this.gl.canvas); // pos is in pixel coordinates for the canvas.
+  // so convert to WebGL clip space coordinates
+
+  var x = pos.x / this.gl.canvas.width * 2 - 1;
+  var y = pos.y / this.gl.canvas.height * -2 + 1;
+  this.state.positionMouse = {
+    x: x,
+    y: y
+  };
+} // assumes target or event.target is canvas
+
+
+function getNoPaddingNoBorderCanvasRelativeMousePosition(event, target) {
+  target = target || event.target;
+  var pos = getRelativeMousePosition(event, target);
+  pos.x = pos.x * target.width / target.clientWidth;
+  pos.y = pos.y * target.height / target.clientHeight;
+  return pos;
+}
+
+function setupCompute() {}
+
 window.addEventListener('DOMContentLoaded', main); // main();
-},{"./styles.css":"src/styles.css","./m4.js":"src/m4.js","./setGeometry":"src/setGeometry.js","./setColors":"src/setColors.js","./utils":"src/utils.js","./shaders.js":"src/shaders.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"./styles.css":"src/styles.css","./m4.js":"src/m4.js","./setGeometry":"src/setGeometry.js","./setColors":"src/setColors.js","./utils":"src/utils.js","./vars":"src/vars.js","./shaders.js":"src/shaders.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
